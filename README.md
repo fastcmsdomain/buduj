@@ -1,7 +1,8 @@
 # Buduj
 
 Gra 3D w przeglądarce: jesteś budowniczym w lesie z klocków. Kopiesz drewno,
-kamień, ziemię i piasek, przepływasz jeziora, a potem stawiasz z tego, co chcesz.
+kamień, ziemię i piasek, przepływasz jeziora, szukasz rozsianych po lesie domków,
+a potem stawiasz z tego, co zdobędziesz.
 
 Cały kod to jeden plik `index.html` — bez instalacji, bez budowania, bez serwera.
 Wystarczy otworzyć plik w przeglądarce. Jedyna zewnętrzna zależność to
@@ -18,6 +19,7 @@ Wystarczy otworzyć plik w przeglądarce. Jedyna zewnętrzna zależność to
 | `spacja` | skok, dwa razy pod rząd — tryb latania; w wodzie wypływanie w górę |
 | `shift` | bieg (w locie i w wodzie: w dół) |
 | `1`–`8` | wybór klocka z paska (na telefonie: dotknięcie slotu) |
+| `C` | przy stole w domku: 1 drewno → 4 deski |
 | `V` lub `F5` | widok zza pleców |
 | `R` | zapis |
 | `Esc` | pauza |
@@ -55,6 +57,16 @@ kopią, stawiają i skaczą.
   Promień celowania przechodzi przez wodę, więc kopie się dno, a wykop poniżej
   poziomu morza zalewa się sam (ograniczone zalewanie wszerz, bez symulacji
   prądów). Klocki można stawiać w wodzie — tak buduje się groble i pomosty.
+- **Domki** — po mapie rozstawione jest 15 domków w trzech wzorach: *leśna
+  chatka* 5 × 5 (bale w narożnikach, deski, spadzisty dach i okno na trzy
+  strony), *dom z gankiem* 7 × 6 (kamienna podmurówka, dwa słupy ganku, sześć
+  okien, trzystopniowy dach) i *kamienna chatka* 5 × 4 (bruk, płaski dach,
+  komin). Każdy stoi na płaskim gruncie powyżej poziomu wody, dostaje
+  podmurówkę wyrównującą teren i wyciętą dookoła polanę, a wzór trafia tam w
+  jednym z czterech obrotów. W środku jest łóżko (dwa klocki: poduszka i koc),
+  stolik i stół do tworzenia — przy nim klawisz `C` zamienia 1 drewno na
+  4 deski. Domki są częścią generowanego świata, więc wynikają z samego ziarna
+  i nie zajmują miejsca w zapisie.
 - **Start** — gracz budzi się na najwyższym trawiastym wzgórzu w pobliżu środka
   mapy, żeby od razu widzieć teren.
 - **Zapis** — w `localStorage` ląduje ziarno świata, pozycja, ekwipunek i lista
@@ -62,7 +74,12 @@ kopią, stawiają i skaczą.
 
 ## Rodzaje klocków
 
-Trawa, ziemia, kamień, drewno, liście, piasek, deski i bruk. Kopanie trawy daje
-ziemię, kopanie kamienia — bruk. Na start dostajesz 24 deski. Woda jest dziewiątym
-rodzajem klocka, ale nie da się jej wykopać ani podnieść — można w niej pływać
-i zasypywać ją innymi klockami.
+Do stawiania masz osiem rodzajów: trawa, ziemia, kamień, drewno, liście, piasek,
+deski i bruk. Kopanie trawy daje ziemię, kopanie kamienia — bruk. Na start
+dostajesz 24 deski.
+
+Reszta świata jest zbudowana z klocków, których nie nosi się w pasku: woda (nie
+da się jej wykopać, można w niej pływać i zasypywać ją innymi klockami), szkło,
+dachówka oraz meble — łóżko, stolik i stół do tworzenia. Rozbiórka domku jest
+opłacalna: szkło daje piasek, a dachówka i meble — deski. Meble mają własne,
+niższe bryły niż pełny sześcian, więc łóżko jest niskie, a stolik węższy.

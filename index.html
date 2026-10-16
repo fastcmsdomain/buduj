@@ -204,7 +204,7 @@ kbd{
 <div class="zaslona" id="menu">
   <div class="karta">
     <h1 id="tytulMenu">BUDUJ</h1>
-    <p class="lid" id="lidMenu">Jesteś budowniczym w lesie z klocków. Kop drewno, kamień i ziemię, przepłyń jezioro i postaw z tego, co tylko chcesz.</p>
+    <p class="lid" id="lidMenu">Jesteś budowniczym w lesie z klocków. Kop drewno, kamień i ziemię, przepłyń jezioro, znajdź rozsiane po lesie domki i postaw z tego, co tylko chcesz.</p>
     <dl class="klawisze" id="klawiszeMenu">
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>chodzenie</dd>
       <dt><kbd>mysz</kbd></dt><dd>rozglądanie się</dd>
@@ -213,6 +213,7 @@ kbd{
       <dt><kbd>shift</kbd></dt><dd>bieg (w locie i w wodzie: w dół)</dd>
       <dt><kbd>1</kbd>–<kbd>8</kbd></dt><dd>wybór klocka z paska</dd>
       <dt><kbd>E</kbd> / <kbd>Q</kbd></dt><dd>to samo z klawiatury</dd>
+      <dt><kbd>C</kbd></dt><dd>przy stole w domku: 1 drewno → 4 deski</dd>
       <dt><kbd>V</kbd> lub <kbd>F5</kbd></dt><dd>widok zza pleców</dd>
       <dt><kbd>Esc</kbd></dt><dd>pauza</dd>
     </dl>
@@ -247,6 +248,7 @@ function wY(i){ return (i / WXZ) | 0; }
 function wSrodku(x,y,z){ return x>=0 && x<WX && y>=0 && y<WY && z>=0 && z<WZ; }
 
 var POWIETRZE=0, TRAWA=1, ZIEMIA=2, KAMIEN=3, DREWNO=4, LISCIE=5, PIASEK=6, DESKI=7, BRUK=8, WODA=9;
+var SZKLO=10, DACHOWKA=11, LOZKO_P=12, LOZKO_K=13, STOLIK=14, STOL=15;
 var POZIOM_WODY = 11;
 
 var RODZAJE = {};
@@ -258,7 +260,13 @@ RODZAJE[LISCIE]  = { nazwa:'Liście',  twardosc:0.22, daje:LISCIE };
 RODZAJE[PIASEK]  = { nazwa:'Piasek',  twardosc:0.35, daje:PIASEK };
 RODZAJE[DESKI]   = { nazwa:'Deski',   twardosc:0.80, daje:DESKI };
 RODZAJE[BRUK]    = { nazwa:'Bruk',    twardosc:1.10, daje:BRUK };
-var WSZYSTKIE = [TRAWA,ZIEMIA,KAMIEN,DREWNO,LISCIE,PIASEK,DESKI,BRUK,WODA];
+RODZAJE[SZKLO]    = { nazwa:'Szkło',             twardosc:0.30, daje:PIASEK };
+RODZAJE[DACHOWKA] = { nazwa:'Dachówka',          twardosc:0.70, daje:DESKI };
+RODZAJE[LOZKO_P]  = { nazwa:'Łóżko',             twardosc:0.40, daje:DESKI };
+RODZAJE[LOZKO_K]  = { nazwa:'Łóżko',             twardosc:0.40, daje:DESKI };
+RODZAJE[STOLIK]   = { nazwa:'Stolik',            twardosc:0.50, daje:DESKI };
+RODZAJE[STOL]     = { nazwa:'Stół do tworzenia', twardosc:0.70, daje:DESKI };
+var WSZYSTKIE = [TRAWA,ZIEMIA,KAMIEN,DREWNO,LISCIE,PIASEK,DESKI,BRUK,WODA,SZKLO,DACHOWKA,LOZKO_P,LOZKO_K,STOLIK,STOL];
 var PASEK_SLOTY = [DREWNO, DESKI, BRUK, KAMIEN, TRAWA, ZIEMIA, PIASEK, LISCIE];
 
 var swiat = new Uint8Array(POLE);
@@ -273,6 +281,13 @@ function pelne(x,y,z){
   var t = swiat[IDX(x,y,z)];
   return t !== POWIETRZE && t !== WODA;           /* przez wode sie przeplywa */
 }
+function zaslania(x,y,z){
+  if(x<0 || x>=WX || z<0 || z>=WZ) return true;
+  if(y<0) return true;
+  if(y>=WY) return false;
+  var t = swiat[IDX(x,y,z)];
+  return t !== POWIETRZE && t !== WODA && t !== SZKLO;
+}
 function czystePowietrze(x,y,z){
   if(x<0 || x>=WX || z<0 || z>=WZ) return false;
   if(y<0) return false;
@@ -285,8 +300,8 @@ function widoczny(x,y,z){
     return czystePowietrze(x+1,y,z) || czystePowietrze(x-1,y,z) || czystePowietrze(x,y+1,z)
         || czystePowietrze(x,y-1,z) || czystePowietrze(x,y,z+1) || czystePowietrze(x,y,z-1);
   }
-  return !pelne(x+1,y,z) || !pelne(x-1,y,z) || !pelne(x,y+1,z)
-      || !pelne(x,y-1,z) || !pelne(x,y,z+1) || !pelne(x,y,z-1);
+  return !zaslania(x+1,y,z) || !zaslania(x-1,y,z) || !zaslania(x,y+1,z)
+      || !zaslania(x,y-1,z) || !zaslania(x,y,z+1) || !zaslania(x,y,z-1);
 }
 
 /* ---------- losowosc z ziarnem ---------- */
@@ -420,6 +435,68 @@ MALOWANIE[WODA] = function(c,T,rnd){
   }
 };
 
+MALOWANIE[SZKLO] = function(c,T,rnd){
+  var k, i, j;
+  for(k=0;k<3;k++){
+    for(i=0;i<T;i++) for(j=0;j<T;j++){
+      var ramka = (i===0 || j===0 || i===T-1 || j===T-1);
+      c.fillStyle = ramka ? '#dfeef4' : jasniej('#bcdfe8', Math.round((rnd()-0.5)*10));
+      c.fillRect(k*T+i, j, 1, 1);
+    }
+    for(i=2;i<6;i++){ c.fillStyle = '#ffffff'; c.fillRect(k*T+i, 2 + (i-2), 1, 1); }
+  }
+};
+MALOWANIE[DACHOWKA] = function(c,T,rnd){
+  var k, i, j;
+  for(k=0;k<3;k++){
+    ziarnisty(c,k*T,0,T,'#8d4433',16,rnd);
+    for(j=0;j<T;j+=4) for(i=0;i<T;i++){
+      c.fillStyle = jasniej('#6b3023', Math.round((rnd()-0.5)*12));
+      c.fillRect(k*T+i, j, 1, 1);
+    }
+    for(j=1;j<T;j+=4) for(i=((j/4)|0)%2; i<T; i+=4){
+      c.fillStyle = jasniej('#a65540', 8);
+      c.fillRect(k*T+i, j, 2, 3);
+    }
+  }
+};
+MALOWANIE[LOZKO_P] = function(c,T,rnd){
+  var i, j;
+  ziarnisty(c,0,0,T,'#efe7da',12,rnd);                     /* gora: poduszka */
+  for(i=0;i<T;i++){ c.fillStyle='#b23a3a'; c.fillRect(i,T-3,1,3); }
+  ziarnisty(c,T,0,T,'#efe7da',10,rnd);                     /* bok */
+  for(i=0;i<T;i++) for(j=T-5;j<T;j++){ c.fillStyle = jasniej('#6b4a2b', Math.round((rnd()-0.5)*14)); c.fillRect(T+i,j,1,1); }
+  ziarnisty(c,2*T,0,T,'#6b4a2b',14,rnd);                   /* spod: rama */
+};
+MALOWANIE[LOZKO_K] = function(c,T,rnd){
+  var i, j;
+  ziarnisty(c,0,0,T,'#b23a3a',14,rnd);
+  for(j=3;j<T;j+=5) for(i=0;i<T;i++){ c.fillStyle='#8e2a2a'; c.fillRect(i,j,1,1); }
+  ziarnisty(c,T,0,T,'#b23a3a',12,rnd);
+  for(i=0;i<T;i++) for(j=T-5;j<T;j++){ c.fillStyle = jasniej('#6b4a2b', Math.round((rnd()-0.5)*14)); c.fillRect(T+i,j,1,1); }
+  ziarnisty(c,2*T,0,T,'#6b4a2b',14,rnd);
+};
+MALOWANIE[STOLIK] = function(c,T,rnd){
+  var i, j;
+  ziarnisty(c,0,0,T,'#c49a5e',14,rnd);                     /* blat */
+  for(i=0;i<T;i++){ c.fillStyle='#9a7340'; c.fillRect(i,0,1,1); c.fillRect(i,T-1,1,1); c.fillRect(0,i,1,1); c.fillRect(T-1,i,1,1); }
+  ziarnisty(c,T,0,T,'#a9834b',14,rnd);                     /* bok z nogami */
+  for(i=0;i<T;i++) for(j=0;j<3;j++){ c.fillStyle='#c49a5e'; c.fillRect(T+i,j,1,1); }
+  for(i=3;i<T-3;i++) for(j=4;j<T;j++){ c.fillStyle = jasniej('#7d5f35', Math.round((rnd()-0.5)*10)); c.fillRect(T+i,j,1,1); }
+  ziarnisty(c,2*T,0,T,'#7d5f35',12,rnd);
+};
+MALOWANIE[STOL] = function(c,T,rnd){
+  var i, j;
+  ziarnisty(c,0,0,T,'#b07d44',14,rnd);                     /* blat z siatka i narzedziami */
+  for(i=0;i<T;i++){ c.fillStyle='#6b4a2b'; c.fillRect(i,T/2|0,1,1); c.fillRect(T/2|0,i,1,1); }
+  c.fillStyle='#4a4f55'; c.fillRect(2,2,4,2); c.fillRect(10,3,2,4);
+  c.fillStyle='#8d9095'; c.fillRect(3,10,5,2); c.fillRect(11,11,2,2);
+  ziarnisty(c,T,0,T,'#9c7340',14,rnd);                     /* bok: narzedzia na scianie */
+  for(i=0;i<T;i++){ c.fillStyle='#6b4a2b'; c.fillRect(T+i,3,1,1); }
+  c.fillStyle='#4a4f55'; c.fillRect(T+4,6,3,5); c.fillRect(T+10,7,2,4);
+  ziarnisty(c,2*T,0,T,'#7d5f35',12,rnd);
+};
+
 var T_KAFEL = 16;
 var atlasy = {};
 function zrobAtlas(typ){
@@ -435,8 +512,9 @@ function zrobAtlas(typ){
 }
 
 /* ---------- geometria klocka: UV na atlas + cieniowanie scian ---------- */
-function geometriaKlocka(){
-  var g = new THREE.BoxGeometry(1,1,1);
+function geometriaKlocka(szer, wys){
+  szer = szer || 1; wys = wys || 1;
+  var g = new THREE.BoxGeometry(szer, wys, szer);
   var uv = g.attributes.uv;
   var kafel = [1,1,0,2,1,1];                    /* px, nx, gora, dol, pz, nz */
   var cien  = [0.86,0.76,1.0,0.58,0.92,0.70];
@@ -456,6 +534,7 @@ function geometriaKlocka(){
     kolory[i] = kolory[i+1] = kolory[i+2] = cien[f];
   }
   g.setAttribute('color', new THREE.BufferAttribute(kolory, 3));
+  if(wys !== 1) g.translate(0, -(1 - wys) / 2, 0);   /* stoi na podlodze kratki */
   return g;
 }
 
@@ -536,7 +615,148 @@ function generujSwiat(ziarno){
       }
     }
   }
+  liczbaDomkow = postawDomki(losowo(ziarno ^ 0x7ab13), wysokosci);
   return wysokosci;
+}
+
+/* ---------- trzy wzory domkow ---------- */
+var liczbaDomkow = 0;
+
+var WZOR_CHATKA = {   /* lesna chatka 5x5, bale i deski, spadzisty dach */
+  nazwa: 'Leśna chatka', w: 5, d: 5,
+  buduj: function(kl){
+    var lx, lz, ly, rog, okno;
+    for(lx=0; lx<5; lx++) for(lz=0; lz<5; lz++) kl(lx, 0, lz, DESKI);
+    for(ly=1; ly<=3; ly++) for(lx=0; lx<5; lx++) for(lz=0; lz<5; lz++){
+      if(lx>0 && lx<4 && lz>0 && lz<4) continue;
+      if(lz===0 && lx===2 && ly<=2) continue;                        /* drzwi */
+      rog = (lx===0 || lx===4) && (lz===0 || lz===4);
+      okno = ly===2 && ((lx===0&&lz===2) || (lx===4&&lz===2) || (lz===4&&lx===2));
+      kl(lx, ly, lz, rog ? DREWNO : (okno ? SZKLO : DESKI));
+    }
+    for(lx=-1; lx<=5; lx++) for(lz=-1; lz<=5; lz++) kl(lx, 4, lz, DACHOWKA);
+    for(lx=0; lx<5; lx++) for(lz=1; lz<=3; lz++) kl(lx, 5, lz, DACHOWKA);
+    for(lx=0; lx<5; lx++) kl(lx, 6, 2, DACHOWKA);
+    kl(1, 1, 3, LOZKO_P); kl(1, 1, 2, LOZKO_K);
+    kl(3, 1, 3, STOLIK);
+    kl(3, 1, 1, STOL);
+  }
+};
+
+var WZOR_DOM = {      /* dom z gankiem 7x6, kamienna podmurowka, dwa rzedy okien */
+  nazwa: 'Dom z gankiem', w: 7, d: 6,
+  buduj: function(kl){
+    var lx, lz, ly, rog, okno;
+    for(lx=0; lx<7; lx++) for(lz=0; lz<6; lz++)
+      kl(lx, 0, lz, (lx===0 || lx===6 || lz===0 || lz===5) ? BRUK : DESKI);
+    for(ly=1; ly<=4; ly++) for(lx=0; lx<7; lx++) for(lz=0; lz<6; lz++){
+      if(lx>0 && lx<6 && lz>0 && lz<5) continue;
+      if(lz===0 && lx===3 && ly<=2) continue;                        /* drzwi */
+      rog = (lx===0 || lx===6) && (lz===0 || lz===5);
+      okno = ly===3 && ((lx===0 && (lz===2||lz===3)) || (lx===6 && (lz===2||lz===3)) || (lz===5 && (lx===2||lx===4)));
+      kl(lx, ly, lz, rog ? DREWNO : (okno ? SZKLO : (ly===1 ? BRUK : DESKI)));
+    }
+    kl(3, 0, -1, DESKI);                                             /* ganek */
+    for(ly=1; ly<=3; ly++){ kl(2, ly, -1, DREWNO); kl(4, ly, -1, DREWNO); }
+    for(lx=2; lx<=4; lx++){ kl(lx, 4, -1, DACHOWKA); kl(lx, 4, 0, DACHOWKA); }
+    for(lx=-1; lx<=7; lx++) for(lz=-1; lz<=6; lz++) kl(lx, 5, lz, DACHOWKA);
+    for(lx=0; lx<7; lx++) for(lz=1; lz<=4; lz++) kl(lx, 6, lz, DACHOWKA);
+    for(lx=0; lx<7; lx++) for(lz=2; lz<=3; lz++) kl(lx, 7, lz, DACHOWKA);
+    kl(1, 1, 1, LOZKO_P); kl(1, 1, 2, LOZKO_K);
+    kl(1, 1, 4, STOLIK);
+    kl(5, 1, 1, STOLIK);
+    kl(5, 1, 4, STOL);
+  }
+};
+
+var WZOR_KAMIENNA = { /* kamienna chatka 5x4, plaski dach i komin */
+  nazwa: 'Kamienna chatka', w: 5, d: 4,
+  buduj: function(kl){
+    var lx, lz, ly, rog, okno;
+    for(lx=0; lx<5; lx++) for(lz=0; lz<4; lz++) kl(lx, 0, lz, KAMIEN);
+    for(ly=1; ly<=3; ly++) for(lx=0; lx<5; lx++) for(lz=0; lz<4; lz++){
+      if(lx>0 && lx<4 && lz>0 && lz<3) continue;
+      if(lz===0 && lx===2 && ly<=2) continue;                        /* drzwi */
+      rog = (lx===0 || lx===4) && (lz===0 || lz===3);
+      okno = ly===2 && ((lx===0&&lz===2) || (lx===4&&lz===1));
+      kl(lx, ly, lz, rog ? KAMIEN : (okno ? SZKLO : BRUK));
+    }
+    for(lx=-1; lx<=5; lx++) for(lz=-1; lz<=4; lz++) kl(lx, 4, lz, DACHOWKA);
+    kl(0, 5, 0, BRUK); kl(0, 6, 0, BRUK); kl(0, 7, 0, KAMIEN);       /* komin */
+    kl(1, 1, 1, LOZKO_P); kl(1, 1, 2, LOZKO_K);
+    kl(3, 1, 2, STOLIK);
+    kl(3, 1, 1, STOL);
+  }
+};
+
+function plaskiTeren(x0, z0, W, D, wysokosci){
+  var min = 999, max = -999, x, z, h;
+  for(x = x0-1; x <= x0+W; x++) for(z = z0-1; z <= z0+D; z++){
+    if(x < 2 || x >= WX-2 || z < 2 || z >= WZ-2) return -1;
+    h = wysokosci[x + z*WX];
+    if(h <= POZIOM_WODY + 1) return -1;        /* brzeg jeziora albo woda */
+    if(h < min) min = h;
+    if(h > max) max = h;
+  }
+  return (max - min <= 2) ? max : -1;
+}
+
+function budujDomek(wzor, x0, z0, yp, obrot, W, D, wysokosci){
+  var x, z, y, h, t;
+  /* polana: wokol domku znikaja drzewa, zeby bylo go widac */
+  for(x = x0-6; x <= x0+W+5; x++) for(z = z0-6; z <= z0+D+5; z++){
+    if(x < 0 || x >= WX || z < 0 || z >= WZ) continue;
+    for(y = wysokosci[x + z*WX] + 1; y < WY; y++){
+      t = swiat[IDX(x,y,z)];
+      if(t === LISCIE || t === DREWNO) swiat[IDX(x,y,z)] = POWIETRZE;
+    }
+  }
+  for(x = x0-1; x <= x0+W; x++) for(z = z0-1; z <= z0+D; z++){
+    if(!wSrodku(x, yp, z)) continue;
+    h = wysokosci[x + z*WX];
+    for(y = h+1; y < yp; y++) swiat[IDX(x,y,z)] = BRUK;      /* podmurowka */
+    for(y = yp+1; y <= yp+9 && y < WY; y++) swiat[IDX(x,y,z)] = POWIETRZE;   /* miejsce na dom */
+  }
+  var w = wzor.w, d = wzor.d;
+  wzor.buduj(function(lx, ly, lz, typ){
+    var wx, wz;
+    if(obrot === 0){ wx = x0 + lx;             wz = z0 + lz; }
+    else if(obrot === 1){ wx = x0 + (d-1-lz);  wz = z0 + lx; }
+    else if(obrot === 2){ wx = x0 + (w-1-lx);  wz = z0 + (d-1-lz); }
+    else { wx = x0 + lz; wz = z0 + (w-1-lx); }
+    var yy = yp + ly;
+    if(wSrodku(wx, yy, wz)) swiat[IDX(wx, yy, wz)] = typ;
+  });
+}
+
+function postawDomki(rnd, wysokosci){
+  var wzory = [WZOR_CHATKA, WZOR_DOM, WZOR_KAMIENNA];
+  var postawione = [], proba, i, wzor, obrot, W, D, x0, z0, yp, blisko, dx, dz;
+  var cel = Math.max(5, Math.round(WXZ / 5600));
+  for(proba = 0; proba < 2600 && postawione.length < cel; proba++){
+    wzor = wzory[(rnd() * 3) | 0];
+    obrot = (rnd() * 4) | 0;
+    W = (obrot % 2) ? wzor.d : wzor.w;
+    D = (obrot % 2) ? wzor.w : wzor.d;
+    if(postawione.length === 0 && proba < 500){     /* pierwszy domek blizej srodka mapy */
+      x0 = ((WX >> 1) - 40) + ((rnd() * 80) | 0);
+      z0 = ((WZ >> 1) - 40) + ((rnd() * 80) | 0);
+    } else {
+      x0 = 3 + ((rnd() * (WX - W - 7)) | 0);
+      z0 = 3 + ((rnd() * (WZ - D - 7)) | 0);
+    }
+    yp = plaskiTeren(x0, z0, W, D, wysokosci);
+    if(yp < 0) continue;
+    blisko = false;
+    for(i = 0; i < postawione.length; i++){
+      dx = postawione[i][0] - x0; dz = postawione[i][1] - z0;
+      if(dx*dx + dz*dz < 30*30){ blisko = true; break; }
+    }
+    if(blisko) continue;
+    budujDomek(wzor, x0, z0, yp, obrot, W, D, wysokosci);
+    postawione.push([x0, z0]);
+  }
+  return postawione.length;
 }
 
 /* ---------- scena ---------- */
@@ -558,9 +778,11 @@ scena.fog = new THREE.FogExp2(NIEBO.getHex(), 0.0145);
 var kamera = new THREE.PerspectiveCamera(72, 1, 0.1, 620);
 scena.add(kamera);
 
-var niebo = new THREE.HemisphereLight(0xcfe3f0, 0x3d4a33, 0.72);
+var niebo = new THREE.HemisphereLight(0xcfe3f0, 0x3d4a33, 0.78);
 scena.add(niebo);
-var slonce = new THREE.DirectionalLight(0xfff0cf, 0.85);
+/* odrobina swiatla rozproszonego, zeby we wnetrzach domkow cos bylo widac */
+scena.add(new THREE.AmbientLight(0xdfe9ef, 0.34));
+var slonce = new THREE.DirectionalLight(0xfff0cf, 0.80);
 slonce.castShadow = !dotykowy;
 slonce.shadow.mapSize.set(2048, 2048);
 slonce.shadow.camera.near = 1;
@@ -593,6 +815,16 @@ scena.add(slonce.target);
 
 /* ---------- instancje klockow, pociete na kawalki mapy ---------- */
 var geoKlocka = geometriaKlocka();
+var geometrie = {};
+function geometriaDla(typ){
+  typ = typ | 0;
+  if(geometrie[typ]) return geometrie[typ];
+  var g;
+  if(typ === LOZKO_P || typ === LOZKO_K) g = geometriaKlocka(1, 0.42);
+  else if(typ === STOLIK) g = geometriaKlocka(0.74, 0.78);
+  else g = geoKlocka;
+  return (geometrie[typ] = g);
+}
 var KAW = 32;
 var KAW_X = Math.ceil(WX / KAW), KAW_Z = Math.ceil(WZ / KAW);
 var LICZBA_KAW = KAW_X * KAW_Z;
@@ -606,6 +838,7 @@ function material(typ){
   if(!materialy[typ]){
     var opis = { map: atlasy[typ].tex, vertexColors: true };
     if((typ | 0) === WODA){ opis.transparent = true; opis.opacity = 0.76; opis.depthWrite = false; }
+    if((typ | 0) === SZKLO){ opis.transparent = true; opis.opacity = 0.55; }
     materialy[typ] = new THREE.MeshLambertMaterial(opis);
   }
   return materialy[typ];
@@ -616,7 +849,7 @@ function ustawMacierz(mesh, i, bi){
   mesh.setMatrixAt(i, pomocnik.matrix);
 }
 function stworzMesh(typ, pojemnosc){
-  var m = new THREE.InstancedMesh(geoKlocka, material(typ), pojemnosc);
+  var m = new THREE.InstancedMesh(geometriaDla(typ), material(typ), pojemnosc);
   m.castShadow = !dotykowy && (typ | 0) !== WODA;
   m.receiveShadow = !dotykowy && (typ | 0) !== WODA;
   m.frustumCulled = false;   /* kawalki odsiewamy sami, calymi kostkami mapy */
@@ -937,6 +1170,19 @@ function dodajDoEkwipunku(typ, ile){
   ekwipunek[typ] = (ekwipunek[typ] || 0) + ile;
   odswiezPasek();
 }
+function blisko(typ, r){
+  var x0 = Math.floor(gracz.x), y0 = Math.floor(gracz.y), z0 = Math.floor(gracz.z);
+  for(var dx=-r; dx<=r; dx++) for(var dy=-2; dy<=2; dy++) for(var dz=-r; dz<=r; dz++)
+    if(klocek(x0+dx, y0+dy, z0+dz) === typ) return true;
+  return false;
+}
+function rzemioslo(){
+  if(!blisko(STOL, 3)){ toast('Stań przy stole do tworzenia'); return; }
+  if((ekwipunek[DREWNO] || 0) < 1){ toast('Potrzebujesz drewna'); return; }
+  ekwipunek[DREWNO]--;
+  dodajDoEkwipunku(DESKI, 4);
+  toast('Przy stole: 1 drewno → 4 deski');
+}
 function toast(tekst){
   elToast.textContent = tekst;
   elToast.classList.add('widac');
@@ -1116,6 +1362,7 @@ document.addEventListener('keydown', function(e){
   if(k === 'F5' || k === 'KeyV'){ trzeciaOsoba = !trzeciaOsoba; e.preventDefault(); }
   if(k === 'KeyE'){ kopiemy = true; }
   if(k === 'KeyQ'){ stawiamy = true; stawianieCooldown = 0; }
+  if(k === 'KeyC') rzemioslo();
   if(k === 'KeyR'){ zapisz(); toast('Zapisano'); }
   if(k === 'Tab') e.preventDefault();
 });
@@ -1256,7 +1503,7 @@ function aktualizuj(dt){
   if(gracz.lata){
     var pion = 0;
     if(klawisze.Space) pion += 1;
-    if(klawisze.ShiftLeft || klawisze.ShiftRight || klawisze.KeyC) pion -= 1;
+    if(klawisze.ShiftLeft || klawisze.ShiftRight) pion -= 1;
     gracz.vy = pion * 8.5;
   } else if(wWodzie){
     /* w wodzie opada sie wolno, spacja wynosi w gore, shift zanurza */
