@@ -30,6 +30,7 @@ img{max-width:100%}
   --font-tekst:'Rubik',system-ui,-apple-system,'Segoe UI',sans-serif;
   color-scheme: dark;
 }
+*,*::before,*::after{box-sizing:border-box}
 html,body{height:100%}
 [hidden]{display:none !important}
 body{
@@ -77,15 +78,16 @@ body{
   opacity:0; transition:opacity .25s; height:19px;
 }
 .nazwa-klocka.widac{opacity:1}
-.pasek{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; pointer-events:auto}
+.pasek{display:flex; gap:6px; flex-wrap:nowrap; justify-content:center; max-width:100%; pointer-events:auto}
 .slot{
-  width:54px; height:54px; border-radius:10px; position:relative; cursor:pointer;
+  flex:0 1 54px; width:54px; height:auto; aspect-ratio:1; min-width:0;
+  border-radius:10px; position:relative; cursor:pointer;
   background:rgba(10,20,15,.66); border:2px solid var(--obwodka);
   display:grid; place-items:center; transition:transform .12s, border-color .12s;
 }
 .slot:hover{border-color:rgba(236,224,198,.45)}
 .slot.wybrany{border-color:var(--slonce); transform:translateY(-5px); background:rgba(26,44,32,.85)}
-.slot canvas{width:34px; height:34px; image-rendering:pixelated; display:block}
+.slot canvas{width:62%; height:62%; image-rendering:pixelated; display:block}
 .slot.pusty canvas{opacity:.42}
 .slot .ile{
   position:absolute; right:4px; bottom:2px; font-size:11px; font-weight:700;
@@ -160,8 +162,8 @@ kbd{
 }
 @media (prefers-reduced-motion: reduce){ *{transition-duration:.01ms !important} }
 @media (max-width:430px){
-  .slot{width:40px; height:40px; border-radius:8px}
-  .slot canvas{width:26px; height:26px}
+  .pasek{gap:4px}
+  .slot{flex-basis:44px; width:44px; border-radius:8px}
   .plakietka{font-size:11px; padding:6px 9px}
 }
 </style>
@@ -203,7 +205,7 @@ kbd{
       <dt><kbd>lewy</kbd> / <kbd>prawy</kbd></dt><dd>kopanie / stawianie klocka</dd>
       <dt><kbd>spacja</kbd></dt><dd>skok, dwa razy — tryb latania</dd>
       <dt><kbd>shift</kbd></dt><dd>bieg (w locie: w dół)</dd>
-      <dt><kbd>1</kbd>–<kbd>8</kbd> / <kbd>kółko</kbd></dt><dd>wybór klocka z paska</dd>
+      <dt><kbd>1</kbd>–<kbd>8</kbd></dt><dd>wybór klocka z paska</dd>
       <dt><kbd>E</kbd> / <kbd>Q</kbd></dt><dd>to samo z klawiatury</dd>
       <dt><kbd>V</kbd> lub <kbd>F5</kbd></dt><dd>widok zza pleców</dd>
       <dt><kbd>Esc</kbd></dt><dd>pauza</dd>
@@ -229,7 +231,7 @@ if(!THREE){
 }
 
 /* ---------- swiat: wymiary i rodzaje klockow ---------- */
-var WX = 64, WY = 48, WZ = 64;
+var WX = 288, WY = 48, WZ = 288;
 var WXZ = WX * WZ;
 var POLE = WX * WY * WZ;
 function IDX(x,y,z){ return x + z*WX + y*WXZ; }
@@ -455,7 +457,8 @@ function generujSwiat(ziarno){
 
   /* glazy */
   var i, j, k;
-  for(i=0;i<26;i++){
+  var ileGlazow = Math.round(26 * WXZ / 4096);
+  for(i=0;i<ileGlazow;i++){
     var gx = 3 + Math.floor(rnd()*(WX-6)), gz = 3 + Math.floor(rnd()*(WZ-6));
     var gy = wysokosci[gx + gz*WX];
     var r = 1 + Math.floor(rnd()*2);
@@ -515,9 +518,9 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 var NIEBO = new THREE.Color('#9fc2d8');
 var scena = new THREE.Scene();
 scena.background = NIEBO;
-scena.fog = new THREE.FogExp2(NIEBO.getHex(), 0.0105);
+scena.fog = new THREE.FogExp2(NIEBO.getHex(), 0.0145);
 
-var kamera = new THREE.PerspectiveCamera(72, 1, 0.1, 460);
+var kamera = new THREE.PerspectiveCamera(72, 1, 0.1, 620);
 scena.add(kamera);
 
 var niebo = new THREE.HemisphereLight(0xcfe3f0, 0x3d4a33, 0.72);
@@ -538,11 +541,11 @@ scena.add(slonce.target);
 (function(){
   var rnd = losowo(77), geo = new THREE.BoxGeometry(1,1,1);
   var mat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x6e8296, transparent: true, opacity: 0.92, fog: false });
-  var ile = 44;
+  var ile = 150;
   var chmury = new THREE.InstancedMesh(geo, mat, ile);
   var d = new THREE.Object3D();
   for(var i=0;i<ile;i++){
-    d.position.set(-230 + rnd()*560, 98 + rnd()*30, -230 + rnd()*560);
+    d.position.set(-180 + rnd()*(WX + 360), 98 + rnd()*30, -180 + rnd()*(WZ + 360));
     d.scale.set(14 + rnd()*26, 4 + rnd()*5, 12 + rnd()*22);
     d.rotation.set(0,0,0);
     d.updateMatrix();
@@ -553,46 +556,68 @@ scena.add(slonce.target);
   window.__chmury = chmury;
 })();
 
-/* ---------- instancje klockow ---------- */
+/* ---------- instancje klockow, pociete na kawalki mapy ---------- */
 var geoKlocka = geometriaKlocka();
-var meshe = {};
+var KAW = 32;
+var KAW_X = Math.ceil(WX / KAW), KAW_Z = Math.ceil(WZ / KAW);
+var LICZBA_KAW = KAW_X * KAW_Z;
+var PROMIEN_KAW = Math.sqrt(KAW*KAW/2 + (WY/2)*(WY/2)) + 1;
+var kawalki = new Array(LICZBA_KAW);
+var materialy = {};
 var pomocnik = new THREE.Object3D();
 
+function nrKawalka(x, z){ return ((x / KAW) | 0) + ((z / KAW) | 0) * KAW_X; }
+function material(typ){
+  if(!materialy[typ]) materialy[typ] = new THREE.MeshLambertMaterial({ map: atlasy[typ].tex, vertexColors: true });
+  return materialy[typ];
+}
 function ustawMacierz(mesh, i, bi){
   pomocnik.position.set(wX(bi) + 0.5, wY(bi) + 0.5, wZ(bi) + 0.5);
   pomocnik.updateMatrix();
   mesh.setMatrixAt(i, pomocnik.matrix);
 }
 function stworzMesh(typ, pojemnosc){
-  var a = atlasy[typ];
-  var mat = new THREE.MeshLambertMaterial({ map: a.tex, vertexColors: true });
-  var m = new THREE.InstancedMesh(geoKlocka, mat, pojemnosc);
+  var m = new THREE.InstancedMesh(geoKlocka, material(typ), pojemnosc);
   m.castShadow = !dotykowy;
   m.receiveShadow = !dotykowy;
-  m.frustumCulled = false;
+  m.frustumCulled = false;   /* kawalki odsiewamy sami, calymi kostkami mapy */
   m.count = 0;
   scena.add(m);
   return m;
 }
-function powiekszMesh(typ){
-  var w = meshe[typ];
-  var nowaPoj = Math.max(1024, w.pojemnosc * 2);
-  var m = stworzMesh(typ, nowaPoj);
-  var noweIdx = new Int32Array(nowaPoj);
-  for(var i=0;i<w.ile;i++){
-    noweIdx[i] = w.idx[i];
-    ustawMacierz(m, i, w.idx[i]);
+function warstwa(nr, typ, zapas){
+  var k = kawalki[nr];
+  if(!k){
+    var kx = nr % KAW_X, kz = (nr / KAW_X) | 0;
+    k = kawalki[nr] = {
+      warstwy: {},
+      sx: (kx + 0.5) * KAW, sz: (kz + 0.5) * KAW,
+      sfera: new THREE.Sphere(new THREE.Vector3((kx + 0.5) * KAW, WY/2, (kz + 0.5) * KAW), PROMIEN_KAW)
+    };
   }
+  var w = k.warstwy[typ];
+  if(!w){
+    var poj = Math.max(96, zapas || 256);
+    w = k.warstwy[typ] = { mesh: stworzMesh(typ, poj), pojemnosc: poj, ile: 0, idx: new Int32Array(poj), gniazdo: new Map() };
+  }
+  return w;
+}
+function powieksz(nr, typ){
+  var w = kawalki[nr].warstwy[typ];
+  var poj = w.pojemnosc * 2;
+  var m = stworzMesh(typ, poj);
+  var noweIdx = new Int32Array(poj), i;
+  for(i=0;i<w.ile;i++){ noweIdx[i] = w.idx[i]; ustawMacierz(m, i, w.idx[i]); }
   m.count = w.ile;
   m.instanceMatrix.needsUpdate = true;
   scena.remove(w.mesh);
   w.mesh.dispose();
-  w.mesh = m; w.idx = noweIdx; w.pojemnosc = nowaPoj;
+  w.mesh = m; w.idx = noweIdx; w.pojemnosc = poj;
 }
-function dodajInstancje(typ, bi){
-  var w = meshe[typ];
+function dodajInstancje(nr, typ, bi){
+  var w = warstwa(nr, typ);
   if(w.gniazdo.has(bi)) return;
-  if(w.ile >= w.pojemnosc) powiekszMesh(typ);
+  if(w.ile >= w.pojemnosc){ powieksz(nr, typ); w = kawalki[nr].warstwy[typ]; }
   var i = w.ile++;
   ustawMacierz(w.mesh, i, bi);
   w.gniazdo.set(bi, i);
@@ -600,8 +625,10 @@ function dodajInstancje(typ, bi){
   w.mesh.count = w.ile;
   w.mesh.instanceMatrix.needsUpdate = true;
 }
-function usunInstancje(typ, bi){
-  var w = meshe[typ];
+function usunInstancje(nr, typ, bi){
+  var k = kawalki[nr];
+  if(!k || !k.warstwy[typ]) return;
+  var w = k.warstwy[typ];
   var i = w.gniazdo.get(bi);
   if(i === undefined) return;
   var ost = w.ile - 1;
@@ -622,8 +649,9 @@ function odswiez(x,y,z){
   var chce = (swiat[bi] !== POWIETRZE && widoczny(x,y,z)) ? swiat[bi] : 0;
   var teraz = rysowane[bi];
   if(chce === teraz) return;
-  if(teraz) usunInstancje(teraz, bi);
-  if(chce) dodajInstancje(chce, bi);
+  var nr = nrKawalka(x, z);
+  if(teraz) usunInstancje(nr, teraz, bi);
+  if(chce) dodajInstancje(nr, chce, bi);
   rysowane[bi] = chce;
 }
 function odswiezZSasiadami(x,y,z){
@@ -633,23 +661,38 @@ function odswiezZSasiadami(x,y,z){
   odswiez(x,y,z+1); odswiez(x,y,z-1);
 }
 function zbudujCalosc(){
-  var i, typ, licz = {};
-  for(i=0;i<WSZYSTKIE.length;i++) licz[WSZYSTKIE[i]] = 0;
-  var x,y,z;
-  for(y=0;y<WY;y++) for(z=0;z<WZ;z++) for(x=0;x<WX;x++){
-    var bi = IDX(x,y,z), t = swiat[bi];
-    if(t !== POWIETRZE && widoczny(x,y,z)) licz[t]++;
-  }
-  for(i=0;i<WSZYSTKIE.length;i++){
-    typ = WSZYSTKIE[i];
-    var poj = licz[typ] + 1536;
-    if(meshe[typ]){ scena.remove(meshe[typ].mesh); meshe[typ].mesh.dispose(); }
-    meshe[typ] = { mesh: stworzMesh(typ, poj), pojemnosc: poj, ile: 0, idx: new Int32Array(poj), gniazdo: new Map() };
+  var n, t, x, y, z;
+  for(n=0;n<LICZBA_KAW;n++){
+    var stary = kawalki[n];
+    if(!stary) continue;
+    for(t in stary.warstwy){ scena.remove(stary.warstwy[t].mesh); stary.warstwy[t].mesh.dispose(); }
+    kawalki[n] = null;
   }
   rysowane.fill(0);
+  var kubelki = new Array(LICZBA_KAW);
   for(y=0;y<WY;y++) for(z=0;z<WZ;z++) for(x=0;x<WX;x++){
-    var b2 = IDX(x,y,z), t2 = swiat[b2];
-    if(t2 !== POWIETRZE && widoczny(x,y,z)){ dodajInstancje(t2, b2); rysowane[b2] = t2; }
+    var bi = IDX(x,y,z), typ = swiat[bi];
+    if(typ === POWIETRZE || !widoczny(x,y,z)) continue;
+    var nr = nrKawalka(x, z);
+    var kb = kubelki[nr] || (kubelki[nr] = {});
+    (kb[typ] || (kb[typ] = [])).push(bi);
+    rysowane[bi] = typ;
+  }
+  for(n=0;n<LICZBA_KAW;n++){
+    var kb2 = kubelki[n];
+    if(!kb2) continue;
+    for(t in kb2){
+      var lista = kb2[t];
+      var w = warstwa(n, t | 0, lista.length + 192);
+      for(var i=0;i<lista.length;i++){
+        ustawMacierz(w.mesh, i, lista[i]);
+        w.gniazdo.set(lista[i], i);
+        w.idx[i] = lista[i];
+      }
+      w.ile = lista.length;
+      w.mesh.count = lista.length;
+      w.mesh.instanceMatrix.needsUpdate = true;
+    }
   }
 }
 
@@ -739,23 +782,21 @@ function szczyt(x, z){
   return 0;
 }
 function znajdzStart(){
-  var cx = WX >> 1, cz = WZ >> 1, r, dx, dz, x, z, y, k, wolne;
-  for(r = 0; r < 26; r++){
-    for(dx = -r; dx <= r; dx++) for(dz = -r; dz <= r; dz++){
-      if(Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
-      x = cx + dx; z = cz + dz;
-      if(x < 3 || x >= WX-3 || z < 3 || z >= WZ-3) continue;
-      y = szczyt(x, z);
-      if(y < 12) continue;
-      if(swiat[IDX(x,y,z)] !== TRAWA) continue;
-      wolne = true;
-      for(k = 1; k <= 3; k++) if(klocek(x, y+k, z) !== POWIETRZE){ wolne = false; break; }
-      if(!wolne) continue;
-      return { x: x + 0.5, y: y + 1.05, z: z + 0.5 };
-    }
+  var cx = WX >> 1, cz = WZ >> 1, x, z, y, k, wolne;
+  var x0 = Math.max(3, cx - 32), x1 = Math.min(WX - 3, cx + 32);
+  var z0 = Math.max(3, cz - 32), z1 = Math.min(WZ - 3, cz + 32);
+  var najY = -1, najX = cx, najZ = cz;
+  for(x = x0; x < x1; x++) for(z = z0; z < z1; z++){
+    y = szczyt(x, z);
+    if(y <= najY) continue;
+    if(swiat[IDX(x,y,z)] !== TRAWA) continue;
+    wolne = true;
+    for(k = 1; k <= 3; k++) if(klocek(x, y+k, z) !== POWIETRZE){ wolne = false; break; }
+    if(!wolne) continue;
+    najY = y; najX = x; najZ = z;
   }
-  var fx = cx + 0.5, fz = cz + 0.5;
-  return { x: fx, y: szczyt(cx, cz) + 1.05, z: fz };
+  if(najY > 0) return { x: najX + 0.5, y: najY + 1.05, z: najZ + 0.5 };
+  return { x: cx + 0.5, y: szczyt(cx, cz) + 1.05, z: cz + 0.5 };
 }
 function postaw(){
   var m = znajdzStart();
@@ -997,10 +1038,6 @@ document.addEventListener('mouseup', function(e){
   if(e.button === 0){ przeciagamy = false; kopiemy = false; postepKopania = 0; kopany = -1; }
   if(e.button === 2) stawiamy = false;
 });
-document.addEventListener('wheel', function(e){
-  if(!gramy) return;
-  wybierz(wybrany + (e.deltaY > 0 ? 1 : -1));
-}, { passive: true });
 
 var ostatniaSpacja = 0;
 document.addEventListener('keydown', function(e){
@@ -1084,7 +1121,7 @@ if(dotykowy){
 }
 
 /* ---------- zapis ---------- */
-var KLUCZ = 'buduj-v1';
+var KLUCZ = 'buduj-v2';
 var ziarnoSwiata = 1;
 function serializuj(){
   var e = [];
@@ -1117,6 +1154,21 @@ function nowySwiat(){
 
 /* ---------- petla ---------- */
 var zegar = new THREE.Clock();
+var ostroslup = new THREE.Frustum(), macierzWidoku = new THREE.Matrix4();
+var ZASIEG_RYS2 = 132 * 132;
+function odsiejKawalki(){
+  kamera.updateMatrixWorld();
+  kamera.matrixWorldInverse.copy(kamera.matrixWorld).invert();
+  macierzWidoku.multiplyMatrices(kamera.projectionMatrix, kamera.matrixWorldInverse);
+  ostroslup.setFromProjectionMatrix(macierzWidoku);
+  for(var n=0;n<LICZBA_KAW;n++){
+    var k = kawalki[n];
+    if(!k) continue;
+    var dx = k.sx - gracz.x, dz = k.sz - gracz.z;
+    var widac = (dx*dx + dz*dz) < ZASIEG_RYS2 && ostroslup.intersectsSphere(k.sfera);
+    for(var t in k.warstwy) k.warstwy[t].mesh.visible = widac;
+  }
+}
 var euler = new THREE.Euler(0, 0, 0, 'YXZ');
 var licznikFps = 0, czasFps = 0, czasHud = 0, czasZapisu = 0;
 
@@ -1236,6 +1288,7 @@ function rysuj(dt){
   var ch = window.__chmury;
   if(ch){ ch.position.x += dt * 0.35; if(ch.position.x > 150) ch.position.x = -150; }
 
+  odsiejKawalki();
   renderer.render(scena, kamera);
 }
 

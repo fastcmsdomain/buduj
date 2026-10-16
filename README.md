@@ -17,7 +17,7 @@ Wystarczy otworzyć plik w przeglądarce. Jedyna zewnętrzna zależność to
 | `E` / `Q` | to samo z klawiatury |
 | `spacja` | skok, dwa razy pod rząd — tryb latania |
 | `shift` | bieg (w locie: w dół) |
-| `1`–`8`, kółko myszy | wybór klocka z paska |
+| `1`–`8` | wybór klocka z paska (na telefonie: dotknięcie slotu) |
 | `V` lub `F5` | widok zza pleców |
 | `R` | zapis |
 | `Esc` | pauza |
@@ -27,14 +27,18 @@ kopią, stawiają i skaczą.
 
 ## Jak to działa
 
-- **Świat** — 64 × 48 × 64 klocków w jednej tablicy `Uint8Array`. Teren powstaje
+- **Świat** — 288 × 48 × 288 klocków w jednej tablicy `Uint8Array`, czyli ponad
+  20 razy większy teren niż pierwotne 64 × 64. Teren powstaje
   z kilku warstw szumu wartościowego z ziarnem, więc ten sam świat da się
   odtworzyć z samego ziarna. Drzewa rosną tam, gdzie osobny szum lasu przekracza
   próg i jest dość miejsca.
-- **Rysowanie** — jeden `THREE.InstancedMesh` na rodzaj klocka. Rysowane są
+- **Rysowanie** — mapa jest pocięta na kawałki 32 × 32 kolumny, a w każdym
+  kawałku stoi po jednym `THREE.InstancedMesh` na rodzaj klocka. Rysowane są
   tylko klocki mające choć jednego sąsiada z powietrzem, czyli skorupa świata
-  (~7 tysięcy sześcianów zamiast 200 tysięcy). Po kopnięciu albo postawieniu
-  klocka aktualizowane są wyłącznie zmienione instancje i ich sąsiedzi.
+  (~170 tysięcy sześcianów zamiast 4 milionów), a z tego co klatkę pokazywane są
+  wyłącznie kawałki w polu widzenia kamery i w zasięgu mgły — zwykle ok. 110
+  wywołań rysowania. Po kopnięciu albo postawieniu klocka aktualizowane są
+  wyłącznie zmienione instancje i ich sąsiedzi w jednym kawałku.
 - **Tekstury** — rysowane w locie na `<canvas>`: dla każdego rodzaju klocka
   atlas 48 × 16 px z kafelkami góry, boku i spodu. Każda ściana sześcianu ma
   własną jasność zapisaną w kolorach wierzchołków, dzięki czemu bryły są
@@ -42,6 +46,8 @@ kopią, stawiają i skaczą.
 - **Fizyka** — własne AABB gracza (0,6 × 1,78) z osobnym rozwiązywaniem kolizji
   na każdej osi i automatycznym wchodzeniem na jeden klocek w górę.
 - **Celowanie** — promień po kratce algorytmem Amanatidesa–Woo, zasięg 6 klocków.
+- **Start** — gracz budzi się na najwyższym trawiastym wzgórzu w pobliżu środka
+  mapy, żeby od razu widzieć teren.
 - **Zapis** — w `localStorage` ląduje ziarno świata, pozycja, ekwipunek i lista
   samych zmienionych klocków, więc zapis jest mały niezależnie od wielkości mapy.
 
