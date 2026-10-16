@@ -40,6 +40,11 @@ body{
   touch-action:none; overscroll-behavior:none;
 }
 #scena{position:fixed; inset:0; width:100%; height:100%; display:block}
+.woda-filtr{
+  position:fixed; inset:0; z-index:3; pointer-events:none;
+  background:linear-gradient(180deg, rgba(31,105,146,.26), rgba(10,52,78,.5));
+  box-shadow:inset 0 0 140px rgba(4,28,44,.7);
+}
 
 .hud{
   position:fixed; inset:0; z-index:5; pointer-events:none;
@@ -170,6 +175,7 @@ kbd{
 </head>
 <body>
 <canvas id="scena"></canvas>
+<div class="woda-filtr" id="wodaFiltr" hidden></div>
 
 <div class="hud">
   <div class="hud-gora">
@@ -198,13 +204,13 @@ kbd{
 <div class="zaslona" id="menu">
   <div class="karta">
     <h1 id="tytulMenu">BUDUJ</h1>
-    <p class="lid" id="lidMenu">Jesteś budowniczym w lesie z klocków. Kop drewno, kamień i ziemię, a potem postaw z nich, co tylko chcesz.</p>
+    <p class="lid" id="lidMenu">Jesteś budowniczym w lesie z klocków. Kop drewno, kamień i ziemię, przepłyń jezioro i postaw z tego, co tylko chcesz.</p>
     <dl class="klawisze" id="klawiszeMenu">
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>chodzenie</dd>
       <dt><kbd>mysz</kbd></dt><dd>rozglądanie się</dd>
       <dt><kbd>lewy</kbd> / <kbd>prawy</kbd></dt><dd>kopanie / stawianie klocka</dd>
-      <dt><kbd>spacja</kbd></dt><dd>skok, dwa razy — tryb latania</dd>
-      <dt><kbd>shift</kbd></dt><dd>bieg (w locie: w dół)</dd>
+      <dt><kbd>spacja</kbd></dt><dd>skok, dwa razy — tryb latania; w wodzie wypływasz w górę</dd>
+      <dt><kbd>shift</kbd></dt><dd>bieg (w locie i w wodzie: w dół)</dd>
       <dt><kbd>1</kbd>–<kbd>8</kbd></dt><dd>wybór klocka z paska</dd>
       <dt><kbd>E</kbd> / <kbd>Q</kbd></dt><dd>to samo z klawiatury</dd>
       <dt><kbd>V</kbd> lub <kbd>F5</kbd></dt><dd>widok zza pleców</dd>
@@ -240,7 +246,8 @@ function wZ(i){ return ((i / WX) | 0) % WZ; }
 function wY(i){ return (i / WXZ) | 0; }
 function wSrodku(x,y,z){ return x>=0 && x<WX && y>=0 && y<WY && z>=0 && z<WZ; }
 
-var POWIETRZE=0, TRAWA=1, ZIEMIA=2, KAMIEN=3, DREWNO=4, LISCIE=5, PIASEK=6, DESKI=7, BRUK=8;
+var POWIETRZE=0, TRAWA=1, ZIEMIA=2, KAMIEN=3, DREWNO=4, LISCIE=5, PIASEK=6, DESKI=7, BRUK=8, WODA=9;
+var POZIOM_WODY = 11;
 
 var RODZAJE = {};
 RODZAJE[TRAWA]   = { nazwa:'Trawa',   twardosc:0.45, daje:ZIEMIA };
@@ -251,7 +258,7 @@ RODZAJE[LISCIE]  = { nazwa:'Liście',  twardosc:0.22, daje:LISCIE };
 RODZAJE[PIASEK]  = { nazwa:'Piasek',  twardosc:0.35, daje:PIASEK };
 RODZAJE[DESKI]   = { nazwa:'Deski',   twardosc:0.80, daje:DESKI };
 RODZAJE[BRUK]    = { nazwa:'Bruk',    twardosc:1.10, daje:BRUK };
-var WSZYSTKIE = [TRAWA,ZIEMIA,KAMIEN,DREWNO,LISCIE,PIASEK,DESKI,BRUK];
+var WSZYSTKIE = [TRAWA,ZIEMIA,KAMIEN,DREWNO,LISCIE,PIASEK,DESKI,BRUK,WODA];
 var PASEK_SLOTY = [DREWNO, DESKI, BRUK, KAMIEN, TRAWA, ZIEMIA, PIASEK, LISCIE];
 
 var swiat = new Uint8Array(POLE);
@@ -263,9 +270,21 @@ function pelne(x,y,z){
   if(x<0 || x>=WX || z<0 || z>=WZ) return true;   /* niewidzialne sciany na krancu mapy */
   if(y<0) return true;
   if(y>=WY) return false;
-  return swiat[IDX(x,y,z)] !== POWIETRZE;
+  var t = swiat[IDX(x,y,z)];
+  return t !== POWIETRZE && t !== WODA;           /* przez wode sie przeplywa */
+}
+function czystePowietrze(x,y,z){
+  if(x<0 || x>=WX || z<0 || z>=WZ) return false;
+  if(y<0) return false;
+  if(y>=WY) return true;
+  return swiat[IDX(x,y,z)] === POWIETRZE;
 }
 function widoczny(x,y,z){
+  if(swiat[IDX(x,y,z)] === WODA){
+    /* z wody rysujemy tylko tafle i sciany stykajace sie z powietrzem */
+    return czystePowietrze(x+1,y,z) || czystePowietrze(x-1,y,z) || czystePowietrze(x,y+1,z)
+        || czystePowietrze(x,y-1,z) || czystePowietrze(x,y,z+1) || czystePowietrze(x,y,z-1);
+  }
   return !pelne(x+1,y,z) || !pelne(x-1,y,z) || !pelne(x,y+1,z)
       || !pelne(x,y-1,z) || !pelne(x,y,z+1) || !pelne(x,y,z-1);
 }
@@ -390,6 +409,17 @@ MALOWANIE[DESKI] = function(c,T,rnd){
   }
 };
 
+MALOWANIE[WODA] = function(c,T,rnd){
+  var k, i, j;
+  for(k=0;k<3;k++){
+    ziarnisty(c,k*T,0,T,'#2d7cad',20,rnd);
+    for(i=0;i<T;i++) for(j=0;j<T;j++){
+      if(rnd() < 0.06){ c.fillStyle = jasniej('#7fcde8', 0); c.fillRect(k*T+i,j,1,1); }
+      else if(rnd() < 0.05){ c.fillStyle = jasniej('#1d5c84', 0); c.fillRect(k*T+i,j,1,1); }
+    }
+  }
+};
+
 var T_KAFEL = 16;
 var atlasy = {};
 function zrobAtlas(typ){
@@ -442,10 +472,12 @@ function generujSwiat(ziarno){
     var s = szum(x+120, z-90, 0.09);
     var p = szum(x-40, z+200, 0.015);
     h = Math.round(15 + (g-0.5)*17 + (s-0.5)*5 + (p-0.5)*9);
-    if(h < 4) h = 4;
+    /* niecki ponizej poziomu wody poglebiamy, zeby dalo sie w nich plywac */
+    if(h < POZIOM_WODY) h = Math.round(POZIOM_WODY - (POZIOM_WODY - h) * 2.2);
+    if(h < 3) h = 3;
     if(h > WY-14) h = WY-14;
     wysokosci[x + z*WX] = h;
-    var plaza = h <= 11;
+    var plaza = h <= POZIOM_WODY + 1;
     for(y=0; y<=h; y++){
       var typ;
       if(y === h) typ = plaza ? PIASEK : TRAWA;
@@ -453,6 +485,7 @@ function generujSwiat(ziarno){
       else typ = KAMIEN;
       swiat[IDX(x,y,z)] = typ;
     }
+    for(y = h+1; y <= POZIOM_WODY; y++) swiat[IDX(x,y,z)] = WODA;
   }
 
   /* glazy */
@@ -476,7 +509,7 @@ function generujSwiat(ziarno){
     if(gestosc < 0.46) continue;
     if(rnd() > 0.10 * (gestosc + 0.3)) continue;
     h = wysokosci[x + z*WX];
-    if(h <= 11) continue;
+    if(h <= POZIOM_WODY + 1) continue;
     if(swiat[IDX(x,h,z)] !== TRAWA) continue;
     var wolne = true;
     for(i=-2;i<=2 && wolne;i++) for(j=-2;j<=2;j++){
@@ -516,6 +549,8 @@ renderer.shadowMap.enabled = !dotykowy;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 var NIEBO = new THREE.Color('#9fc2d8');
+var TON_WODY = new THREE.Color('#1d5c84');
+var MGLA_POWIETRZE = 0.0145, MGLA_WODA = 0.085;
 var scena = new THREE.Scene();
 scena.background = NIEBO;
 scena.fog = new THREE.FogExp2(NIEBO.getHex(), 0.0145);
@@ -568,7 +603,11 @@ var pomocnik = new THREE.Object3D();
 
 function nrKawalka(x, z){ return ((x / KAW) | 0) + ((z / KAW) | 0) * KAW_X; }
 function material(typ){
-  if(!materialy[typ]) materialy[typ] = new THREE.MeshLambertMaterial({ map: atlasy[typ].tex, vertexColors: true });
+  if(!materialy[typ]){
+    var opis = { map: atlasy[typ].tex, vertexColors: true };
+    if((typ | 0) === WODA){ opis.transparent = true; opis.opacity = 0.76; opis.depthWrite = false; }
+    materialy[typ] = new THREE.MeshLambertMaterial(opis);
+  }
   return materialy[typ];
 }
 function ustawMacierz(mesh, i, bi){
@@ -578,8 +617,8 @@ function ustawMacierz(mesh, i, bi){
 }
 function stworzMesh(typ, pojemnosc){
   var m = new THREE.InstancedMesh(geoKlocka, material(typ), pojemnosc);
-  m.castShadow = !dotykowy;
-  m.receiveShadow = !dotykowy;
+  m.castShadow = !dotykowy && (typ | 0) !== WODA;
+  m.receiveShadow = !dotykowy && (typ | 0) !== WODA;
   m.frustumCulled = false;   /* kawalki odsiewamy sami, calymi kostkami mapy */
   m.count = 0;
   scena.add(m);
@@ -818,8 +857,9 @@ function promien(ox, oy, oz, dx, dy, dz, zasieg){
   var tZ = dz === 0 ? Infinity : (dz > 0 ? (z + 1 - oz) : (oz - z)) * dZ;
   var nx = 0, ny = 0, nz = 0, t = 0;
   for(var krok = 0; krok < 160; krok++){
-    if(wSrodku(x,y,z) && swiat[IDX(x,y,z)] !== POWIETRZE){
-      return { x:x, y:y, z:z, nx:nx, ny:ny, nz:nz };
+    if(wSrodku(x,y,z)){
+      var tu = swiat[IDX(x,y,z)];
+      if(tu !== POWIETRZE && tu !== WODA) return { x:x, y:y, z:z, nx:nx, ny:ny, nz:nz };
     }
     if(tX < tY && tX < tZ){ x += kx; t = tX; tX += dX; nx = -kx; ny = 0; nz = 0; }
     else if(tY < tZ){ y += ky; t = tY; tY += dY; nx = 0; ny = -ky; nz = 0; }
@@ -847,6 +887,7 @@ var elKlawisze = document.getElementById('klawiszeMenu');
 var elBtnGraj = document.getElementById('btnGraj');
 var elBtnNowy = document.getElementById('btnNowy');
 var elToast = document.getElementById('toast');
+var elWodaFiltr = document.getElementById('wodaFiltr');
 
 function zbudujPasek(){
   elPasek.innerHTML = '';
@@ -915,12 +956,26 @@ function ustawKlocek(x, y, z, typ){
   zmiany.set(bi, typ);
   odswiezZSasiadami(x,y,z);
 }
+function zalej(x, y, z){
+  if(y > POZIOM_WODY) return;
+  var kolejka = [x, y, z], limit = 900, i = 0;
+  while(i < kolejka.length && limit-- > 0){
+    var px = kolejka[i++], py = kolejka[i++], pz = kolejka[i++];
+    if(!wSrodku(px,py,pz) || py > POZIOM_WODY) continue;
+    if(swiat[IDX(px,py,pz)] !== POWIETRZE) continue;
+    if(klocek(px+1,py,pz) !== WODA && klocek(px-1,py,pz) !== WODA && klocek(px,py,pz+1) !== WODA
+       && klocek(px,py,pz-1) !== WODA && klocek(px,py+1,pz) !== WODA) continue;
+    ustawKlocek(px, py, pz, WODA);
+    kolejka.push(px+1,py,pz, px-1,py,pz, px,py,pz+1, px,py,pz-1, px,py-1,pz);
+  }
+}
 function kopnij(c){
   var typ = swiat[IDX(c.x, c.y, c.z)];
   if(!typ) return;
   ustawKlocek(c.x, c.y, c.z, POWIETRZE);
   dodajDoEkwipunku(RODZAJE[typ].daje, 1);
   machniecie = 1;
+  zalej(c.x, c.y, c.z);
   /* liscie bez pnia opadaja po chwili */
   zrzucLiscie(c.x, c.y, c.z);
 }
@@ -951,7 +1006,9 @@ function stawiaj(c){
   var typ = PASEK_SLOTY[wybrany];
   if((ekwipunek[typ] || 0) <= 0){ toast('Nie masz klocków: ' + RODZAJE[typ].nazwa.toLowerCase()); return; }
   var x = c.x + c.nx, y = c.y + c.ny, z = c.z + c.nz;
-  if(!wSrodku(x,y,z) || swiat[IDX(x,y,z)] !== POWIETRZE) return;
+  if(!wSrodku(x,y,z)) return;
+  var docelowy = swiat[IDX(x,y,z)];
+  if(docelowy !== POWIETRZE && docelowy !== WODA) return;
   var px0 = gracz.x - POL_SZER, px1 = gracz.x + POL_SZER;
   var pz0 = gracz.z - POL_SZER, pz1 = gracz.z + POL_SZER;
   if(px1 > x && px0 < x+1 && gracz.y + WZROST > y && gracz.y < y+1 && pz1 > z && pz0 < z+1){
@@ -1153,6 +1210,7 @@ function nowySwiat(){
 }
 
 /* ---------- petla ---------- */
+var podWodaWidok = false;
 var zegar = new THREE.Clock();
 var ostroslup = new THREE.Frustum(), macierzWidoku = new THREE.Matrix4();
 var ZASIEG_RYS2 = 132 * 132;
@@ -1182,8 +1240,15 @@ function aktualizuj(dt){
   var dl = Math.sqrt(przod*przod + bok*bok);
   if(dl > 1){ przod /= dl; bok /= dl; }
 
-  var biegnie = !!(klawisze.ShiftLeft || klawisze.ShiftRight) && !gracz.lata;
+  var sx = Math.floor(gracz.x), sz = Math.floor(gracz.z);
+  var wWodzie = klocek(sx, Math.floor(gracz.y + 0.15), sz) === WODA
+             || klocek(sx, Math.floor(gracz.y + 1.0), sz) === WODA;
+  gracz.wWodzie = wWodzie;
+  gracz.podWoda = klocek(sx, Math.floor(gracz.y + OCZY), sz) === WODA;
+  var nurek = !!(klawisze.ShiftLeft || klawisze.ShiftRight);
+  var biegnie = nurek && !gracz.lata && !wWodzie;
   var predkosc = gracz.lata ? 11 : (biegnie ? 7.4 : 4.6);
+  if(wWodzie && !gracz.lata) predkosc *= 0.62;
   var s = Math.sin(gracz.yaw), c = Math.cos(gracz.yaw);
   gracz.vx = (-s * przod + c * bok) * predkosc;
   gracz.vz = (-c * przod - s * bok) * predkosc;
@@ -1193,6 +1258,13 @@ function aktualizuj(dt){
     if(klawisze.Space) pion += 1;
     if(klawisze.ShiftLeft || klawisze.ShiftRight || klawisze.KeyC) pion -= 1;
     gracz.vy = pion * 8.5;
+  } else if(wWodzie){
+    /* w wodzie opada sie wolno, spacja wynosi w gore, shift zanurza */
+    gracz.vy -= 9 * dt;
+    if(gracz.vy < -2.6) gracz.vy = -2.6;
+    if(gracz.vy > 4.2) gracz.vy = 4.2;
+    if(klawisze.Space) gracz.vy = 4.0;
+    else if(nurek) gracz.vy = -3.4;
   } else {
     gracz.vy -= 28 * dt;
     if(gracz.vy < -48) gracz.vy = -48;
@@ -1285,6 +1357,14 @@ function rysuj(dt){
   slonce.target.position.set(gracz.x, gracz.y, gracz.z);
   slonce.target.updateMatrixWorld();
 
+  if(gracz.podWoda !== podWodaWidok){
+    podWodaWidok = !!gracz.podWoda;
+    elWodaFiltr.hidden = !podWodaWidok;
+    scena.background = podWodaWidok ? TON_WODY : NIEBO;
+    scena.fog.color.copy(podWodaWidok ? TON_WODY : NIEBO);
+    scena.fog.density = podWodaWidok ? MGLA_WODA : MGLA_POWIETRZE;
+  }
+
   var ch = window.__chmury;
   if(ch){ ch.position.x += dt * 0.35; if(ch.position.x > 150) ch.position.x = -150; }
 
@@ -1294,7 +1374,8 @@ function rysuj(dt){
 
 function hud(){
   elPozycja.textContent = 'x ' + Math.floor(gracz.x) + ' · y ' + Math.floor(gracz.y) + ' · z ' + Math.floor(gracz.z);
-  elTryb.textContent = gracz.lata ? 'latasz' : (gracz.naZiemi ? 'na ziemi' : 'w powietrzu');
+  elTryb.textContent = gracz.lata ? 'latasz'
+    : (gracz.podWoda ? 'pod wodą' : (gracz.wWodzie ? 'płyniesz' : (gracz.naZiemi ? 'na ziemi' : 'w powietrzu')));
 }
 
 function klatka(){
@@ -1368,7 +1449,7 @@ function start(dane){
       '<dt><kbd>lewy palec</kbd></dt><dd>chodzenie</dd>' +
       '<dt><kbd>prawy palec</kbd></dt><dd>rozglądanie się</dd>' +
       '<dt><kbd>KOP</kbd> / <kbd>STAW</kbd></dt><dd>kopanie i stawianie klocka</dd>' +
-      '<dt><kbd>SKOK</kbd> / <kbd>LOT</kbd></dt><dd>skok, tryb latania</dd>' +
+      '<dt><kbd>SKOK</kbd> / <kbd>LOT</kbd></dt><dd>skok i wypływanie, tryb latania</dd>' +
       '<dt><kbd>pasek</kbd></dt><dd>wybór klocka na dole ekranu</dd>';
   }
 

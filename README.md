@@ -1,7 +1,7 @@
 # Buduj
 
 Gra 3D w przeglądarce: jesteś budowniczym w lesie z klocków. Kopiesz drewno,
-kamień, ziemię i piasek, a potem stawiasz z nich, co chcesz.
+kamień, ziemię i piasek, przepływasz jeziora, a potem stawiasz z tego, co chcesz.
 
 Cały kod to jeden plik `index.html` — bez instalacji, bez budowania, bez serwera.
 Wystarczy otworzyć plik w przeglądarce. Jedyna zewnętrzna zależność to
@@ -15,8 +15,8 @@ Wystarczy otworzyć plik w przeglądarce. Jedyna zewnętrzna zależność to
 | mysz | rozglądanie się (po kliknięciu gra blokuje kursor; bez blokady — przeciąganie) |
 | lewy / prawy przycisk | kopanie / stawianie klocka |
 | `E` / `Q` | to samo z klawiatury |
-| `spacja` | skok, dwa razy pod rząd — tryb latania |
-| `shift` | bieg (w locie: w dół) |
+| `spacja` | skok, dwa razy pod rząd — tryb latania; w wodzie wypływanie w górę |
+| `shift` | bieg (w locie i w wodzie: w dół) |
 | `1`–`8` | wybór klocka z paska (na telefonie: dotknięcie slotu) |
 | `V` lub `F5` | widok zza pleców |
 | `R` | zapis |
@@ -46,6 +46,15 @@ kopią, stawiają i skaczą.
 - **Fizyka** — własne AABB gracza (0,6 × 1,78) z osobnym rozwiązywaniem kolizji
   na każdej osi i automatycznym wchodzeniem na jeden klocek w górę.
 - **Celowanie** — promień po kratce algorytmem Amanatidesa–Woo, zasięg 6 klocków.
+- **Woda** — niecki poniżej poziomu 11 są zalane i dodatkowo pogłębione, więc
+  jeziora mają średnio 4–5 klocków głębokości (najgłębsze 8). Woda nie blokuje
+  ruchu, ale też nie zasłania sąsiadów, więc spod tafli widać piaszczyste dno;
+  z samej wody rysowane są tylko klocki stykające się z powietrzem, czyli tafla
+  i ściany przy brzegu. W wodzie opada się powoli, spacja wynosi w górę, shift
+  zanurza, a pod powierzchnią ekran dostaje niebieski filtr i gęstszą mgłę.
+  Promień celowania przechodzi przez wodę, więc kopie się dno, a wykop poniżej
+  poziomu morza zalewa się sam (ograniczone zalewanie wszerz, bez symulacji
+  prądów). Klocki można stawiać w wodzie — tak buduje się groble i pomosty.
 - **Start** — gracz budzi się na najwyższym trawiastym wzgórzu w pobliżu środka
   mapy, żeby od razu widzieć teren.
 - **Zapis** — w `localStorage` ląduje ziarno świata, pozycja, ekwipunek i lista
@@ -54,4 +63,6 @@ kopią, stawiają i skaczą.
 ## Rodzaje klocków
 
 Trawa, ziemia, kamień, drewno, liście, piasek, deski i bruk. Kopanie trawy daje
-ziemię, kopanie kamienia — bruk. Na start dostajesz 24 deski.
+ziemię, kopanie kamienia — bruk. Na start dostajesz 24 deski. Woda jest dziewiątym
+rodzajem klocka, ale nie da się jej wykopać ani podnieść — można w niej pływać
+i zasypywać ją innymi klockami.
