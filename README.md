@@ -2,7 +2,7 @@
 
 Gra 3D w przeglądarce: jesteś budowniczym w lesie z klocków. Kopiesz drewno,
 kamień, ziemię i piasek, przepływasz jeziora, szukasz rozsianych po lesie domków,
-a potem stawiasz z tego, co zdobędziesz.
+a potem stawiasz z tego, co zdobędziesz. Po mapie chodzą sarny, krowy i kury.
 
 Cały kod to jeden plik `index.html` — bez instalacji, bez budowania, bez serwera.
 Wystarczy otworzyć plik w przeglądarce. Jedyna zewnętrzna zależność to
@@ -67,6 +67,14 @@ kopią, stawiają i skaczą.
   stolik i stół do tworzenia — przy nim klawisz `C` zamienia 1 drewno na
   4 deski. Domki są częścią generowanego świata, więc wynikają z samego ziarna
   i nie zajmują miejsca w zapisie.
+- **Zwierzęta** — po świecie chodzi 60 sztuk: 16 krów na łąkach, 20 saren
+  w lesie i 24 kury trzymające się domków. Każde zwierzę to kilkanaście kostek,
+  ale całe stado rysuje się w 13 wywołaniach — jedna `InstancedMesh` na gatunek
+  i kolor, a pozycja, obrót i wymach nóg siedzą w macierzy instancji. Zwierzę
+  co kilka sekund losuje, czy stoi, czy idzie, i w którą stronę; wchodzi o
+  klocek w górę, schodzi o klocek w dół, ale nie wejdzie do wody ani nie spadnie
+  z urwiska, bo sprawdza grunt przed sobą. Ruszają się tylko sztuki w promieniu
+  115 klocków od gracza — reszta stoi i nic nie kosztuje.
 - **Start** — gracz budzi się na najwyższym trawiastym wzgórzu w pobliżu środka
   mapy, żeby od razu widzieć teren.
 - **Zapis** — w `localStorage` ląduje ziarno świata, pozycja, ekwipunek i lista

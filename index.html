@@ -204,7 +204,7 @@ kbd{
 <div class="zaslona" id="menu">
   <div class="karta">
     <h1 id="tytulMenu">BUDUJ</h1>
-    <p class="lid" id="lidMenu">Jesteś budowniczym w lesie z klocków. Kop drewno, kamień i ziemię, przepłyń jezioro, znajdź rozsiane po lesie domki i postaw z tego, co tylko chcesz.</p>
+    <p class="lid" id="lidMenu">Jesteś budowniczym w lesie z klocków. Kop drewno, kamień i ziemię, przepłyń jezioro, odwiedź domki, w których kręcą się kury, i postaw z tego, co tylko chcesz. Po lesie chodzą sarny, a na łąkach pasą się krowy.</p>
     <dl class="klawisze" id="klawiszeMenu">
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>chodzenie</dd>
       <dt><kbd>mysz</kbd></dt><dd>rozglądanie się</dd>
@@ -729,7 +729,9 @@ function budujDomek(wzor, x0, z0, yp, obrot, W, D, wysokosci){
   });
 }
 
+var pozycjeDomkow = [];
 function postawDomki(rnd, wysokosci){
+  pozycjeDomkow.length = 0;
   var wzory = [WZOR_CHATKA, WZOR_DOM, WZOR_KAMIENNA];
   var postawione = [], proba, i, wzor, obrot, W, D, x0, z0, yp, blisko, dx, dz;
   var cel = Math.max(5, Math.round(WXZ / 5600));
@@ -755,6 +757,7 @@ function postawDomki(rnd, wysokosci){
     if(blisko) continue;
     budujDomek(wzor, x0, z0, yp, obrot, W, D, wysokosci);
     postawione.push([x0, z0]);
+    pozycjeDomkow.push([x0 + (W>>1), yp, z0 + (D>>1)]);
   }
   return postawione.length;
 }
@@ -965,6 +968,234 @@ function zbudujCalosc(){
       w.mesh.count = lista.length;
       w.mesh.instanceMatrix.needsUpdate = true;
     }
+  }
+}
+
+/* ---------- zwierzeta ---------- */
+var BIALY='#e9e4da', CIEMNY='#3b3430', ROZOWY='#d9959a', KREM='#e3d7b8',
+    BRAZ='#9a6b3f', CIEMNOBRAZ='#6b4a2b', CZERWIEN='#c0392b', POMARANCZ='#e0a132', SZARY='#cfc8bd';
+/* czesci: x, y, z, szerokosc, wysokosc, glebokosc, kolor, noga (1 albo 2 = faza kroku) */
+var GATUNKI = {
+  krowa: { predkosc: 1.0, wzrost: 1.35, czesci: [
+    [ 0,    0.80,  0,     0.78, 0.66, 1.26, BIALY, 0],
+    [ 0,    1.04, -0.80,  0.52, 0.48, 0.44, BIALY, 0],
+    [ 0.41, 0.88, -0.22,  0.06, 0.30, 0.42, CIEMNY, 0],
+    [-0.41, 0.80,  0.26,  0.06, 0.28, 0.36, CIEMNY, 0],
+    [ 0,    1.14,  0.30,  0.40, 0.08, 0.34, CIEMNY, 0],
+    [ 0,    0.94, -1.04,  0.34, 0.26, 0.18, ROZOWY, 0],
+    [ 0.22, 1.30, -0.76,  0.10, 0.16, 0.10, KREM, 0],
+    [-0.22, 1.30, -0.76,  0.10, 0.16, 0.10, KREM, 0],
+    [ 0,    0.92,  0.68,  0.10, 0.52, 0.10, CIEMNY, 0],
+    [ 0.26, 0.24, -0.44,  0.18, 0.48, 0.18, CIEMNY, 1],
+    [-0.26, 0.24,  0.44,  0.18, 0.48, 0.18, CIEMNY, 1],
+    [-0.26, 0.24, -0.44,  0.18, 0.48, 0.18, CIEMNY, 2],
+    [ 0.26, 0.24,  0.44,  0.18, 0.48, 0.18, CIEMNY, 2]
+  ]},
+  sarna: { predkosc: 2.1, wzrost: 1.6, czesci: [
+    [ 0,    0.92,  0,     0.50, 0.54, 1.02, BRAZ, 0],
+    [ 0,    1.18, -0.46,  0.26, 0.46, 0.26, BRAZ, 0],
+    [ 0,    1.40, -0.62,  0.30, 0.30, 0.46, BRAZ, 0],
+    [ 0,    1.34, -0.86,  0.18, 0.16, 0.14, CIEMNY, 0],
+    [ 0.18, 1.52, -0.58,  0.12, 0.16, 0.06, BRAZ, 0],
+    [-0.18, 1.52, -0.58,  0.12, 0.16, 0.06, BRAZ, 0],
+    [ 0.10, 1.64, -0.62,  0.06, 0.30, 0.06, KREM, 0],
+    [-0.10, 1.64, -0.62,  0.06, 0.30, 0.06, KREM, 0],
+    [ 0,    1.06,  0.54,  0.14, 0.18, 0.08, BIALY, 0],
+    [ 0.18, 0.32, -0.36,  0.12, 0.64, 0.12, CIEMNOBRAZ, 1],
+    [-0.18, 0.32,  0.36,  0.12, 0.64, 0.12, CIEMNOBRAZ, 1],
+    [-0.18, 0.32, -0.36,  0.12, 0.64, 0.12, CIEMNOBRAZ, 2],
+    [ 0.18, 0.32,  0.36,  0.12, 0.64, 0.12, CIEMNOBRAZ, 2]
+  ]},
+  kura: { predkosc: 1.35, wzrost: 0.75, czesci: [
+    [ 0,    0.36,  0,     0.30, 0.32, 0.40, BIALY, 0],
+    [ 0,    0.58, -0.20,  0.22, 0.22, 0.20, BIALY, 0],
+    [ 0,    0.72, -0.20,  0.06, 0.10, 0.14, CZERWIEN, 0],
+    [ 0,    0.55, -0.34,  0.08, 0.07, 0.10, POMARANCZ, 0],
+    [ 0.17, 0.38,  0,     0.05, 0.20, 0.30, SZARY, 0],
+    [-0.17, 0.38,  0,     0.05, 0.20, 0.30, SZARY, 0],
+    [ 0,    0.48,  0.26,  0.16, 0.22, 0.10, SZARY, 0],
+    [ 0.08, 0.11,  0.02,  0.06, 0.22, 0.06, POMARANCZ, 1],
+    [-0.08, 0.11,  0.02,  0.06, 0.22, 0.06, POMARANCZ, 2]
+  ]}
+};
+
+var geoZwierz = new THREE.BoxGeometry(1,1,1);
+var materialyZw = {};
+function materialZw(kolor){
+  if(!materialyZw[kolor]) materialyZw[kolor] = new THREE.MeshLambertMaterial({ color: kolor });
+  return materialyZw[kolor];
+}
+var zwierzeta = [];
+var warstwyZwierzat = [];      /* {mesh, gatunek, czesci:[...]} - jedna siatka na gatunek i kolor */
+var mBaza = new THREE.Matrix4(), mCzesc = new THREE.Matrix4(), mObrot = new THREE.Matrix4(),
+    mPrzes = new THREE.Matrix4(), mSkala = new THREE.Matrix4(), mWynik = new THREE.Matrix4();
+
+function usunZwierzeta(){
+  for(var i=0;i<warstwyZwierzat.length;i++){
+    scena.remove(warstwyZwierzat[i].mesh);
+    warstwyZwierzat[i].mesh.dispose();
+  }
+  warstwyZwierzat.length = 0;
+  zwierzeta.length = 0;
+}
+
+function wolneMiejsce(x, y, z){
+  return klocek(x, y, z) === POWIETRZE && klocek(x, y+1, z) === POWIETRZE;
+}
+function miejsceDlaZwierzat(ile, rnd){
+  var lista = [], proby = 0, x, z, y, t;
+  while(lista.length < ile && proby++ < ile * 80){
+    x = 4 + ((rnd() * (WX-8)) | 0);
+    z = 4 + ((rnd() * (WZ-8)) | 0);
+    y = szczyt(x, z);
+    if(y <= POZIOM_WODY + 1) continue;
+    t = swiat[IDX(x,y,z)];
+    if(t !== TRAWA && t !== PIASEK) continue;
+    if(!wolneMiejsce(x, y+1, z)) continue;
+    lista.push([x + 0.5, y + 1, z + 0.5]);
+  }
+  return lista;
+}
+
+function stworzZwierzeta(ziarno){
+  usunZwierzeta();
+  var rnd = losowo((ziarno ^ 0x1f0a5) >>> 0), i, j, k;
+
+  function dodaj(gatunek, miejsca){
+    for(i=0;i<miejsca.length;i++){
+      zwierzeta.push({
+        gatunek: gatunek, x: miejsca[i][0], y: miejsca[i][1], z: miejsca[i][2],
+        yaw: rnd() * Math.PI * 2, vy: 0, idzie: false, krok: rnd() * 6,
+        czas: rnd() * 3, predkosc: GATUNKI[gatunek].predkosc * (0.85 + rnd() * 0.3)
+      });
+    }
+  }
+  dodaj('krowa', miejsceDlaZwierzat(16, rnd));
+  dodaj('sarna', miejsceDlaZwierzat(20, rnd));
+
+  /* kury trzymaja sie domkow */
+  var kurze = [];
+  for(i=0; i<pozycjeDomkow.length && kurze.length < 22; i++){
+    var d = pozycjeDomkow[i];
+    for(j=0; j<3; j++){
+      for(k=0; k<14; k++){
+        var kx = d[0] + ((rnd()*13) | 0) - 6, kz = d[2] + ((rnd()*13) | 0) - 6;
+        if(kx < 2 || kx >= WX-2 || kz < 2 || kz >= WZ-2) continue;
+        var ky = szczyt(kx, kz);
+        if(ky <= POZIOM_WODY + 1 || !wolneMiejsce(kx, ky+1, kz)) continue;
+        kurze.push([kx + 0.5, ky + 1, kz + 0.5]);
+        break;
+      }
+    }
+  }
+  dodaj('kura', kurze);
+
+  /* po jednej siatce na gatunek i kolor - cale stado to kilkanascie wywolan rysowania */
+  var nazwy = ['krowa','sarna','kura'];
+  for(i=0;i<nazwy.length;i++){
+    var g = nazwy[i];
+    var sztuk = 0;
+    for(j=0;j<zwierzeta.length;j++) if(zwierzeta[j].gatunek === g) sztuk++;
+    if(!sztuk) continue;
+    var wgKoloru = {};
+    var czesci = GATUNKI[g].czesci;
+    for(j=0;j<czesci.length;j++){
+      var kol = czesci[j][6];
+      (wgKoloru[kol] || (wgKoloru[kol] = [])).push(czesci[j]);
+    }
+    for(var kol2 in wgKoloru){
+      var lista = wgKoloru[kol2];
+      var mesh = new THREE.InstancedMesh(geoZwierz, materialZw(kol2), sztuk * lista.length);
+      mesh.castShadow = !dotykowy;
+      mesh.receiveShadow = !dotykowy;
+      mesh.frustumCulled = false;
+      scena.add(mesh);
+      warstwyZwierzat.push({ mesh: mesh, gatunek: g, czesci: lista });
+    }
+  }
+  odswiezZwierzeta();
+}
+
+function przejdzieZwierze(a, nx, nz){
+  var bx = Math.floor(nx), bz = Math.floor(nz), by = Math.floor(a.y + 0.1);
+  if(bx < 1 || bx >= WX-1 || bz < 1 || bz >= WZ-1) return 0;
+  if(klocek(bx, by, bz) === WODA || klocek(bx, by - 1, bz) === WODA) return 0;   /* zwierzeta nie plywaja */
+  if(!pelne(bx, by, bz) && !pelne(bx, by + 1, bz)){
+    if(pelne(bx, by - 1, bz)) return 1;                                          /* rowny grunt */
+    if(pelne(bx, by - 2, bz) && klocek(bx, by - 1, bz) !== WODA) return 1;       /* zejscie o jeden klocek */
+    return 0;                                                                    /* urwisko albo woda */
+  }
+  if(!pelne(bx, by + 1, bz) && !pelne(bx, by + 2, bz) && pelne(bx, by, bz)) return 2;   /* wejscie o klocek wyzej */
+  return 0;
+}
+
+function ruszZwierzeta(dt){
+  if(!zwierzeta.length) return;
+  var i, a, dx, dz, s, c, nx, nz, mozna;
+  for(i=0;i<zwierzeta.length;i++){
+    a = zwierzeta[i];
+    dx = a.x - gracz.x; dz = a.z - gracz.z;
+    if(dx*dx + dz*dz > 115*115) continue;        /* dalekie stado stoi w miejscu */
+
+    a.czas -= dt;
+    if(a.czas <= 0){
+      a.idzie = Math.random() < 0.62;
+      a.yaw += (Math.random() - 0.5) * 2.4;
+      a.czas = 1.4 + Math.random() * 3.6;
+    }
+    if(a.idzie){
+      s = Math.sin(a.yaw); c = Math.cos(a.yaw);
+      nx = a.x - s * a.predkosc * dt;
+      nz = a.z - c * a.predkosc * dt;
+      mozna = przejdzieZwierze(a, nx, nz);
+      if(mozna){
+        a.x = nx; a.z = nz;
+        if(mozna === 2) a.y += 1;
+        a.krok += a.predkosc * dt * 5;
+      } else {
+        a.yaw += 1.4 + Math.random();
+        a.idzie = false;
+        a.czas = 0.3 + Math.random() * 0.6;
+      }
+    }
+    a.vy -= 26 * dt;
+    if(a.vy < -30) a.vy = -30;
+    var ny = a.y + a.vy * dt;
+    if(pelne(Math.floor(a.x), Math.floor(ny - 0.02), Math.floor(a.z))){
+      a.y = Math.floor(ny - 0.02) + 1;
+      a.vy = 0;
+    } else {
+      a.y = ny;
+      if(a.y < -4){ a.y = WY - 2; }
+    }
+  }
+  odswiezZwierzeta();
+}
+
+function odswiezZwierzeta(){
+  var w, i, j, a, cz, idx, pivot, wahniecie;
+  for(w = 0; w < warstwyZwierzat.length; w++){
+    var warstwa = warstwyZwierzat[w];
+    idx = 0;
+    for(i = 0; i < zwierzeta.length; i++){
+      a = zwierzeta[i];
+      if(a.gatunek !== warstwa.gatunek) continue;
+      mBaza.makeTranslation(a.x, a.y, a.z);
+      mBaza.multiply(mObrot.makeRotationY(a.yaw));
+      for(j = 0; j < warstwa.czesci.length; j++){
+        cz = warstwa.czesci[j];
+        wahniecie = 0;
+        if(cz[7] && a.idzie) wahniecie = Math.sin(a.krok) * (cz[7] === 1 ? 0.55 : -0.55);
+        pivot = cz[1] + cz[4] / 2;
+        mCzesc.makeTranslation(cz[0], pivot, cz[2]);
+        mCzesc.multiply(mObrot.makeRotationX(wahniecie));
+        mCzesc.multiply(mPrzes.makeTranslation(0, cz[1] - pivot, 0));
+        mCzesc.multiply(mSkala.makeScale(cz[3], cz[4], cz[5]));
+        mWynik.multiplyMatrices(mBaza, mCzesc);
+        warstwa.mesh.setMatrixAt(idx++, mWynik);
+      }
+    }
+    warstwa.mesh.instanceMatrix.needsUpdate = true;
   }
 }
 
@@ -1447,6 +1678,7 @@ function nowySwiat(){
   zmiany.clear();
   generujSwiat(ziarnoSwiata);
   zbudujCalosc();
+  stworzZwierzeta(ziarnoSwiata);
   ekwipunek = {}; ekwipunek[DESKI] = 24;
   wybierz(0);
   postaw();
@@ -1630,6 +1862,7 @@ function klatka(){
   var dt = zegar.getDelta();
   if(dt > 0.05) dt = 0.05;
   if(gramy) aktualizuj(dt);
+  ruszZwierzeta(dt);
   rysuj(dt);
 
   licznikFps++; czasFps += dt; czasHud += dt;
@@ -1671,6 +1904,7 @@ function start(dane){
     }
   }
   zbudujCalosc();
+  stworzZwierzeta(ziarnoSwiata);
 
   ekwipunek = (dane && dane.i) ? dane.i : (function(){ var e = {}; e[DESKI] = 24; return e; })();
   wybrany = (dane && typeof dane.w === 'number') ? dane.w : 0;
