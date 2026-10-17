@@ -2,7 +2,7 @@
 
 Gra 3D w przeglądarce: jesteś budowniczym w lesie z klocków. Kopiesz drewno,
 kamień, ziemię i piasek, przepływasz jeziora, szukasz rozsianych po lesie domków,
-a potem stawiasz z tego, co zdobędziesz. Po mapie chodzą sarny, krowy i kury.
+a potem stawiasz z tego, co zdobędziesz. Po mapie chodzą sarny, krowy i kury, a przy domkach mieszkają ludzie.
 
 Cały kod to jeden plik `index.html` — bez instalacji, bez budowania, bez serwera.
 Wystarczy otworzyć plik w przeglądarce. Jedyna zewnętrzna zależność to
@@ -75,6 +75,12 @@ kopią, stawiają i skaczą.
   klocek w górę, schodzi o klocek w dół, ale nie wejdzie do wody ani nie spadnie
   z urwiska, bo sprawdza grunt przed sobą. Ruszają się tylko sztuki w promieniu
   115 klocków od gracza — reszta stoi i nic nie kosztuje.
+- **Mieszkańcy** — przy każdym domku mieszka jedna osoba, plus pięciu wędrowców
+  w głębi lasu: razem 20 ludzi w trzech wariantach koszuli. Korzystają z tego
+  samego systemu co zwierzęta (kostki w instancjach, wspólne chodzenie,
+  omijanie wody i urwisk), ale mają dwie własne zasady: pamiętają swój dom
+  i zawracają, gdy oddalą się o ponad 22 klocki, a gdy podejdziesz na ok. cztery
+  klocki, przystają i odwracają się w twoją stronę.
 - **Start** — gracz budzi się na najwyższym trawiastym wzgórzu w pobliżu środka
   mapy, żeby od razu widzieć teren.
 - **Zapis** — w `localStorage` ląduje ziarno świata, pozycja, ekwipunek i lista

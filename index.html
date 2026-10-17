@@ -204,7 +204,7 @@ kbd{
 <div class="zaslona" id="menu">
   <div class="karta">
     <h1 id="tytulMenu">BUDUJ</h1>
-    <p class="lid" id="lidMenu">Jesteś budowniczym w lesie z klocków. Kop drewno, kamień i ziemię, przepłyń jezioro, odwiedź domki, w których kręcą się kury, i postaw z tego, co tylko chcesz. Po lesie chodzą sarny, a na łąkach pasą się krowy.</p>
+    <p class="lid" id="lidMenu">Jesteś budowniczym w lesie z klocków. Kop drewno, kamień i ziemię, przepłyń jezioro, odwiedź domki, w których kręcą się kury, i postaw z tego, co tylko chcesz. Po lesie chodzą sarny, na łąkach pasą się krowy, a przy domkach kręcą się ich mieszkańcy.</p>
     <dl class="klawisze" id="klawiszeMenu">
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd>chodzenie</dd>
       <dt><kbd>mysz</kbd></dt><dd>rozglądanie się</dd>
@@ -1019,6 +1019,23 @@ var GATUNKI = {
   ]}
 };
 
+var SKORA='#d9a173', WLOSY='#4a3526', SPODNIE='#3f4659';
+function ludzik(koszula){
+  return { predkosc: 1.55, wzrost: 1.85, czlowiek: true, czesci: [
+    [ 0.11, 0.40,  0,     0.20, 0.80, 0.20, SPODNIE, 1],
+    [-0.11, 0.40,  0,     0.20, 0.80, 0.20, SPODNIE, 2],
+    [ 0,    1.12,  0,     0.46, 0.64, 0.26, koszula, 0],
+    [ 0.33, 1.12,  0,     0.16, 0.60, 0.18, SKORA, 2],
+    [-0.33, 1.12,  0,     0.16, 0.60, 0.18, SKORA, 1],
+    [ 0,    1.62,  0,     0.38, 0.36, 0.34, SKORA, 0],
+    [ 0,    1.60, -0.19,  0.08, 0.08, 0.06, SKORA, 0],
+    [ 0,    1.81,  0,     0.40, 0.10, 0.36, WLOSY, 0]
+  ]};
+}
+GATUNKI.mieszkaniec_a = ludzik('#b4463a');
+GATUNKI.mieszkaniec_b = ludzik('#3a5d9a');
+GATUNKI.mieszkaniec_c = ludzik('#4f7a3a');
+
 var geoZwierz = new THREE.BoxGeometry(1,1,1);
 var materialyZw = {};
 function materialZw(kolor){
@@ -1062,9 +1079,9 @@ function stworzZwierzeta(ziarno){
   var rnd = losowo((ziarno ^ 0x1f0a5) >>> 0), i, j, k;
 
   function dodaj(gatunek, miejsca){
-    for(i=0;i<miejsca.length;i++){
+    for(var q = 0; q < miejsca.length; q++){     /* wlasny licznik - dodaj bywa wolane w srodku innych petli */
       zwierzeta.push({
-        gatunek: gatunek, x: miejsca[i][0], y: miejsca[i][1], z: miejsca[i][2],
+        gatunek: gatunek, x: miejsca[q][0], y: miejsca[q][1], z: miejsca[q][2],
         yaw: rnd() * Math.PI * 2, vy: 0, idzie: false, krok: rnd() * 6,
         czas: rnd() * 3, predkosc: GATUNKI[gatunek].predkosc * (0.85 + rnd() * 0.3)
       });
@@ -1090,8 +1107,29 @@ function stworzZwierzeta(ziarno){
   }
   dodaj('kura', kurze);
 
+  /* mieszkancy: po jednym przy domku, kazdy pamieta swoj dom */
+  var koszule = ['mieszkaniec_a','mieszkaniec_b','mieszkaniec_c'];
+  for(i=0; i<pozycjeDomkow.length; i++){
+    var dm = pozycjeDomkow[i];
+    for(k=0; k<16; k++){
+      var mx = dm[0] + ((rnd()*15) | 0) - 7, mz = dm[2] + ((rnd()*15) | 0) - 7;
+      if(mx < 2 || mx >= WX-2 || mz < 2 || mz >= WZ-2) continue;
+      var my = szczyt(mx, mz);
+      if(my <= POZIOM_WODY + 1 || !wolneMiejsce(mx, my+1, mz)) continue;
+      dodaj(koszule[(rnd()*3) | 0], [[mx + 0.5, my + 1, mz + 0.5]]);
+      zwierzeta[zwierzeta.length-1].dom = [mx + 0.5, mz + 0.5];
+      break;
+    }
+  }
+  /* kilku wedrowcow z dala od domkow */
+  var wedrowcy = miejsceDlaZwierzat(5, rnd);
+  for(i=0; i<wedrowcy.length; i++){
+    dodaj(koszule[(rnd()*3) | 0], [wedrowcy[i]]);
+    zwierzeta[zwierzeta.length-1].dom = [wedrowcy[i][0], wedrowcy[i][2]];
+  }
+
   /* po jednej siatce na gatunek i kolor - cale stado to kilkanascie wywolan rysowania */
-  var nazwy = ['krowa','sarna','kura'];
+  var nazwy = Object.keys(GATUNKI);
   for(i=0;i<nazwy.length;i++){
     var g = nazwy[i];
     var sztuk = 0;
@@ -1137,11 +1175,26 @@ function ruszZwierzeta(dt){
     dx = a.x - gracz.x; dz = a.z - gracz.z;
     if(dx*dx + dz*dz > 115*115) continue;        /* dalekie stado stoi w miejscu */
 
-    a.czas -= dt;
-    if(a.czas <= 0){
-      a.idzie = Math.random() < 0.62;
-      a.yaw += (Math.random() - 0.5) * 2.4;
-      a.czas = 1.4 + Math.random() * 3.6;
+    if(GATUNKI[a.gatunek].czlowiek && dx*dx + dz*dz < 20){
+      /* ktos podchodzi - mieszkaniec staje i odwraca sie w jego strone */
+      a.idzie = false;
+      a.yaw = Math.atan2(gracz.x - a.x, gracz.z - a.z) + Math.PI;
+      a.czas = Math.max(a.czas, 0.5);
+    } else {
+      a.czas -= dt;
+      if(a.czas <= 0){
+        a.idzie = Math.random() < 0.62;
+        a.yaw += (Math.random() - 0.5) * 2.4;
+        a.czas = 1.4 + Math.random() * 3.6;
+        if(a.dom){
+          var hx = a.dom[0] - a.x, hz = a.dom[1] - a.z;
+          if(hx*hx + hz*hz > 22*22){     /* za daleko od domu - zawraca */
+            a.yaw = Math.atan2(hx, hz) + Math.PI;
+            a.idzie = true;
+            a.czas = 2.5;
+          }
+        }
+      }
     }
     if(a.idzie){
       s = Math.sin(a.yaw); c = Math.cos(a.yaw);
