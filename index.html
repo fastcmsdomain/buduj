@@ -99,6 +99,36 @@ body{
   font-variant-numeric:tabular-nums; text-shadow:0 1px 3px #000; color:var(--piasek);
 }
 .slot .nr{position:absolute; left:5px; top:2px; font-size:10px; color:var(--mgla)}
+.slot.skrzynka{background:rgba(46,32,16,.82); border-color:rgba(242,179,61,.45)}
+.slot.skrzynka:hover{border-color:var(--slonce); background:rgba(62,44,22,.9)}
+.slot.skrzynka canvas{opacity:1}
+
+.okno-tlo{
+  position:fixed; inset:0; z-index:12; display:grid; place-items:center;
+  background:rgba(6,12,9,.74); backdrop-filter:blur(3px); overflow-y:auto;
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+  padding-block:max(18px, env(safe-area-inset-top,0px)) max(18px, env(safe-area-inset-bottom,0px));
+}
+.okno{
+  position:relative; width:min(540px,100%); background:var(--szklo);
+  border:1px solid var(--obwodka); border-radius:16px; padding:22px 20px 18px;
+  box-shadow:0 24px 60px rgba(0,0,0,.6);
+}
+.okno h2{margin:0 0 4px}
+.okno .podpis{
+  margin:0 0 10px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--mgla);
+}
+.okno .wskazowka{margin:0 0 16px; font-size:13px; color:var(--mgla)}
+.siatka{display:grid; grid-template-columns:repeat(9, minmax(0,1fr)); gap:6px; margin:0 0 16px}
+.siatka .slot{flex:none; width:100%; height:auto}
+.okno .zamknij{
+  position:absolute; right:12px; top:10px; width:34px; height:34px; border-radius:8px;
+  background:transparent; border:1px solid var(--obwodka); color:var(--mgla);
+  font-size:15px; cursor:pointer; line-height:1;
+}
+.okno .zamknij:hover{color:var(--piasek); background:rgba(236,224,198,.08)}
+.okno .zamknij:focus-visible{outline:2px solid var(--slonce); outline-offset:2px}
 
 .dotyk{display:none; position:absolute; inset:0; pointer-events:none}
 body.dotykowy .dotyk{display:block}
@@ -167,6 +197,8 @@ kbd{
 }
 @media (prefers-reduced-motion: reduce){ *{transition-duration:.01ms !important} }
 @media (max-width:430px){
+  .siatka{grid-template-columns:repeat(6, minmax(0,1fr)); gap:4px}
+  .okno{padding:18px 14px 14px}
   .pasek{gap:4px}
   .slot{flex-basis:44px; width:44px; border-radius:8px}
   .plakietka{font-size:11px; padding:6px 9px}
@@ -211,7 +243,8 @@ kbd{
       <dt><kbd>lewy</kbd> / <kbd>prawy</kbd></dt><dd>kopanie / stawianie klocka</dd>
       <dt><kbd>spacja</kbd></dt><dd>skok, dwa razy — tryb latania; w wodzie wypływasz w górę</dd>
       <dt><kbd>shift</kbd></dt><dd>bieg (w locie i w wodzie: w dół)</dd>
-      <dt><kbd>1</kbd>–<kbd>8</kbd></dt><dd>wybór klocka z paska</dd>
+      <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>wybór celi z paska</dd>
+      <dt><kbd>I</kbd> lub <kbd>0</kbd></dt><dd>skrzynia z zebranymi surowcami (dziesiąta cela paska)</dd>
       <dt><kbd>E</kbd> / <kbd>Q</kbd></dt><dd>to samo z klawiatury</dd>
       <dt><kbd>C</kbd></dt><dd>przy stole w domku: 1 drewno → 4 deski</dd>
       <dt><kbd>V</kbd> lub <kbd>F5</kbd></dt><dd>widok zza pleców</dd>
@@ -222,6 +255,18 @@ kbd{
       <button class="btn cichy" id="btnNowy" type="button">Nowy świat</button>
     </div>
     <p class="stopka" id="stopka">Świat zapisuje się sam w tej przeglądarce.</p>
+  </div>
+</div>
+
+<div class="okno-tlo" id="skrzyniaOkno" hidden>
+  <div class="okno">
+    <button class="zamknij" id="skrzyniaZamknij" type="button" aria-label="Zamknij skrzynię">✕</button>
+    <h2>Skrzynia</h2>
+    <p class="wskazowka">Wszystko, co zebrałeś w świecie. Kliknij klocek, żeby przełożyć go między skrzynią a paskiem.</p>
+    <p class="podpis">Zebrane surowce</p>
+    <div class="siatka" id="siatkaSkrzyni"></div>
+    <p class="podpis">Pasek</p>
+    <div class="siatka" id="siatkaPaska"></div>
   </div>
 </div>
 
@@ -260,14 +305,13 @@ RODZAJE[LISCIE]  = { nazwa:'Liście',  twardosc:0.22, daje:LISCIE };
 RODZAJE[PIASEK]  = { nazwa:'Piasek',  twardosc:0.35, daje:PIASEK };
 RODZAJE[DESKI]   = { nazwa:'Deski',   twardosc:0.80, daje:DESKI };
 RODZAJE[BRUK]    = { nazwa:'Bruk',    twardosc:1.10, daje:BRUK };
-RODZAJE[SZKLO]    = { nazwa:'Szkło',             twardosc:0.30, daje:PIASEK };
-RODZAJE[DACHOWKA] = { nazwa:'Dachówka',          twardosc:0.70, daje:DESKI };
-RODZAJE[LOZKO_P]  = { nazwa:'Łóżko',             twardosc:0.40, daje:DESKI };
-RODZAJE[LOZKO_K]  = { nazwa:'Łóżko',             twardosc:0.40, daje:DESKI };
-RODZAJE[STOLIK]   = { nazwa:'Stolik',            twardosc:0.50, daje:DESKI };
-RODZAJE[STOL]     = { nazwa:'Stół do tworzenia', twardosc:0.70, daje:DESKI };
+RODZAJE[SZKLO]    = { nazwa:'Szkło',             twardosc:0.30, daje:SZKLO };
+RODZAJE[DACHOWKA] = { nazwa:'Dachówka',          twardosc:0.70, daje:DACHOWKA };
+RODZAJE[LOZKO_P]  = { nazwa:'Łóżko',             twardosc:0.40, daje:LOZKO_P };
+RODZAJE[LOZKO_K]  = { nazwa:'Łóżko',             twardosc:0.40, daje:LOZKO_K };
+RODZAJE[STOLIK]   = { nazwa:'Stolik',            twardosc:0.50, daje:STOLIK };
+RODZAJE[STOL]     = { nazwa:'Stół do tworzenia', twardosc:0.70, daje:STOL };
 var WSZYSTKIE = [TRAWA,ZIEMIA,KAMIEN,DREWNO,LISCIE,PIASEK,DESKI,BRUK,WODA,SZKLO,DACHOWKA,LOZKO_P,LOZKO_K,STOLIK,STOL];
-var PASEK_SLOTY = [DREWNO, DESKI, BRUK, KAMIEN, TRAWA, ZIEMIA, PIASEK, LISCIE];
 
 var swiat = new Uint8Array(POLE);
 var rysowane = new Uint8Array(POLE);
@@ -1387,9 +1431,10 @@ function promien(ox, oy, oz, dx, dy, dz, zasieg){
 }
 
 /* ---------- ekwipunek i pasek ---------- */
-var ekwipunek = {};
-var wybrany = 0;
-var paskiDOM = [];
+var PASEK_ILE = 9, SKRZYNIA_ILE = 27, STOS = 64;
+var pasek = pustaLista(PASEK_ILE), skrzynia = pustaLista(SKRZYNIA_ILE);
+var wybrany = 0, skrzyniaOtwarta = false;
+var paskiDOM = [], skrzyniaDOM = [], paskaWOknieDOM = [];
 var elPasek = document.getElementById('pasek');
 var elNazwa = document.getElementById('nazwaKlocka');
 var elPozycja = document.getElementById('pozycja');
@@ -1405,55 +1450,187 @@ var elBtnGraj = document.getElementById('btnGraj');
 var elBtnNowy = document.getElementById('btnNowy');
 var elToast = document.getElementById('toast');
 var elWodaFiltr = document.getElementById('wodaFiltr');
+var elSkrzyniaOkno = document.getElementById('skrzyniaOkno');
+var elSiatkaSkrzyni = document.getElementById('siatkaSkrzyni');
+var elSiatkaPaska = document.getElementById('siatkaPaska');
+document.getElementById('skrzyniaZamknij').addEventListener('click', function(){ zamknijSkrzynie(); });
+document.getElementById('skrzyniaOkno').addEventListener('click', function(e){ if(e.target === elSkrzyniaOkno) zamknijSkrzynie(); });
+
+function ikonaKlocka(plotnoIkony, typ){
+  var cx = plotnoIkony.getContext('2d');
+  cx.clearRect(0, 0, plotnoIkony.width, plotnoIkony.height);
+  if(!typ) return;
+  cx.imageSmoothingEnabled = false;
+  cx.drawImage(atlasy[typ].canvas, 0, 0, T_KAFEL, T_KAFEL, 0, 0, plotnoIkony.width, plotnoIkony.height);
+}
+function ikonaSkrzyni(plotnoIkony){
+  var cx = plotnoIkony.getContext('2d'), w = plotnoIkony.width, j = w / 16;
+  cx.clearRect(0, 0, w, w);
+  cx.fillStyle = '#8a5a2b'; cx.fillRect(j*2, j*4.5, j*12, j*8.5);
+  cx.fillStyle = '#6b4a2b'; cx.fillRect(j*2, j*4.5, j*12, j*3);
+  cx.fillStyle = '#4e3418'; cx.fillRect(j*2, j*7.5, j*12, j*0.9);
+  cx.fillStyle = '#e0a132'; cx.fillRect(j*7, j*6.4, j*2, j*3);
+  cx.fillStyle = '#3b2a16'; cx.fillRect(j*7.6, j*7.4, j*0.9, j*1.3);
+}
+function nowySlot(kontener, numer, przyKliknieciu){
+  var d = document.createElement('div');
+  d.className = 'slot pusty';
+  var c = document.createElement('canvas');
+  c.width = 40; c.height = 40;
+  var nr = document.createElement('span'); nr.className = 'nr';
+  if(numer) nr.textContent = numer;
+  var ile = document.createElement('span'); ile.className = 'ile';
+  d.appendChild(c); d.appendChild(nr); d.appendChild(ile);
+  d.addEventListener('click', function(e){ e.stopPropagation(); przyKliknieciu(); });
+  kontener.appendChild(d);
+  return { el: d, plotno: c, ile: ile };
+}
+function odswiezSlot(widok, rzecz, zaznaczony){
+  if(!widok) return;
+  ikonaKlocka(widok.plotno, rzecz ? rzecz.typ : 0);
+  widok.ile.textContent = rzecz && rzecz.ile > 1 ? String(rzecz.ile) : '';
+  widok.el.classList.toggle('pusty', !rzecz);
+  widok.el.classList.toggle('wybrany', !!zaznaczony);
+  widok.el.title = rzecz ? RODZAJE[rzecz.typ].nazwa + ' · ' + rzecz.ile : 'Puste';
+}
 
 function zbudujPasek(){
   elPasek.innerHTML = '';
   paskiDOM = [];
-  for(var i=0;i<PASEK_SLOTY.length;i++){
-    (function(i){
-      var typ = PASEK_SLOTY[i];
-      var d = document.createElement('div');
-      d.className = 'slot';
-      d.title = RODZAJE[typ].nazwa;
-      var c = document.createElement('canvas');
-      c.width = 34; c.height = 34;
-      var cx = c.getContext('2d');
-      cx.imageSmoothingEnabled = false;
-      cx.drawImage(atlasy[typ].canvas, 0, 0, T_KAFEL, T_KAFEL, 0, 0, 34, 34);
-      var nr = document.createElement('span'); nr.className = 'nr'; nr.textContent = String(i+1);
-      var ile = document.createElement('span'); ile.className = 'ile';
-      d.appendChild(c); d.appendChild(nr); d.appendChild(ile);
-      d.addEventListener('click', function(e){ e.stopPropagation(); wybierz(i); });
-      elPasek.appendChild(d);
-      paskiDOM.push({ el: d, ile: ile, typ: typ });
-    })(i);
+  var i;
+  for(i = 0; i < PASEK_ILE; i++){
+    (function(i){ paskiDOM.push(nowySlot(elPasek, String(i+1), function(){ wybierz(i); })); })(i);
   }
-}
-function odswiezPasek(){
-  for(var i=0;i<paskiDOM.length;i++){
-    var s = paskiDOM[i], n = ekwipunek[s.typ] || 0;
-    s.ile.textContent = n > 0 ? String(n) : '';
-    s.el.classList.toggle('wybrany', i === wybrany);
-    s.el.classList.toggle('pusty', n === 0);
+  /* dziesiata cela: guzik otwierajacy skrzynie */
+  var guzik = nowySlot(elPasek, 'I', function(){ przelaczSkrzynie(); });
+  guzik.el.classList.remove('pusty');
+  guzik.el.classList.add('skrzynka');
+  guzik.el.title = 'Skrzynia — klawisz I (przy zablokowanym kursorze kliknięcie w HUD nie dochodzi)';
+  ikonaSkrzyni(guzik.plotno);
+
+  elSiatkaSkrzyni.innerHTML = '';
+  skrzyniaDOM = [];
+  for(i = 0; i < SKRZYNIA_ILE; i++){
+    (function(i){ skrzyniaDOM.push(nowySlot(elSiatkaSkrzyni, '', function(){ przeniesSlot(skrzynia, i, pasek); })); })(i);
   }
-  var typ = PASEK_SLOTY[wybrany];
-  var m = rekaKlocek.material;
-  if(m.map !== atlasy[typ].tex){ m.map = atlasy[typ].tex; m.needsUpdate = true; }
-  rekaKlocek.visible = (ekwipunek[typ] || 0) > 0;
-}
-function wybierz(i){
-  wybrany = (i + PASEK_SLOTY.length) % PASEK_SLOTY.length;
+  elSiatkaPaska.innerHTML = '';
+  paskaWOknieDOM = [];
+  for(i = 0; i < PASEK_ILE; i++){
+    (function(i){ paskaWOknieDOM.push(nowySlot(elSiatkaPaska, String(i+1), function(){ przeniesSlot(pasek, i, skrzynia); })); })(i);
+  }
   odswiezPasek();
-  var typ = PASEK_SLOTY[wybrany];
-  elNazwa.textContent = RODZAJE[typ].nazwa + ' · ' + (ekwipunek[typ] || 0);
+}
+
+function odswiezPasek(){
+  var i;
+  for(i = 0; i < PASEK_ILE; i++){
+    odswiezSlot(paskiDOM[i], pasek[i], i === wybrany);
+    odswiezSlot(paskaWOknieDOM[i], pasek[i], i === wybrany);
+  }
+  for(i = 0; i < SKRZYNIA_ILE; i++) odswiezSlot(skrzyniaDOM[i], skrzynia[i], false);
+  var rzecz = pasek[wybrany];
+  rekaKlocek.visible = !!rzecz;
+  if(rzecz){
+    var m = rekaKlocek.material;
+    if(m.map !== atlasy[rzecz.typ].tex){ m.map = atlasy[rzecz.typ].tex; m.needsUpdate = true; }
+  }
+}
+
+function wybierz(i){
+  wybrany = (i + PASEK_ILE) % PASEK_ILE;
+  odswiezPasek();
+  var rzecz = pasek[wybrany];
+  elNazwa.textContent = rzecz ? RODZAJE[rzecz.typ].nazwa + ' · ' + rzecz.ile : 'Pusta cela';
   elNazwa.classList.add('widac');
   clearTimeout(wybierz._t);
   wybierz._t = setTimeout(function(){ elNazwa.classList.remove('widac'); }, 1400);
 }
+
+/* ---------- przekladanie rzeczy ---------- */
+function pustaLista(ile){
+  var a = new Array(ile);
+  for(var i = 0; i < ile; i++) a[i] = null;
+  return a;
+}
+function dolozDo(lista, typ, ile){
+  var i, miejsce;
+  for(i = 0; i < lista.length && ile > 0; i++){
+    if(lista[i] && lista[i].typ === typ && lista[i].ile < STOS){
+      miejsce = Math.min(STOS - lista[i].ile, ile);
+      lista[i].ile += miejsce;
+      ile -= miejsce;
+    }
+  }
+  for(i = 0; i < lista.length && ile > 0; i++){
+    if(!lista[i]){
+      miejsce = Math.min(STOS, ile);
+      lista[i] = { typ: typ, ile: miejsce };
+      ile -= miejsce;
+    }
+  }
+  return ile;   /* czego sie nie zmiescilo */
+}
 function dodajDoEkwipunku(typ, ile){
-  ekwipunek[typ] = (ekwipunek[typ] || 0) + ile;
+  var reszta = dolozDo(pasek, typ, ile);
+  if(reszta > 0) reszta = dolozDo(skrzynia, typ, reszta);
+  if(reszta > 0) toast('Nie ma już miejsca w skrzyni');
+  odswiezPasek();
+  return ile - reszta;
+}
+function ileMam(typ){
+  var n = 0, i;
+  for(i = 0; i < pasek.length; i++) if(pasek[i] && pasek[i].typ === typ) n += pasek[i].ile;
+  for(i = 0; i < skrzynia.length; i++) if(skrzynia[i] && skrzynia[i].typ === typ) n += skrzynia[i].ile;
+  return n;
+}
+function zabierzZListy(lista, typ, ile){
+  for(var i = 0; i < lista.length && ile > 0; i++){
+    if(!lista[i] || lista[i].typ !== typ) continue;
+    var ubytek = Math.min(lista[i].ile, ile);
+    lista[i].ile -= ubytek;
+    ile -= ubytek;
+    if(lista[i].ile <= 0) lista[i] = null;
+  }
+  return ile;
+}
+function zabierz(typ, ile){
+  var zostalo = zabierzZListy(pasek, typ, ile);
+  if(zostalo > 0) zostalo = zabierzZListy(skrzynia, typ, zostalo);
+  odswiezPasek();
+  return zostalo === 0;
+}
+function przeniesSlot(zrodlo, i, cel){
+  var rzecz = zrodlo[i];
+  if(!rzecz) return;
+  var reszta = dolozDo(cel, rzecz.typ, rzecz.ile);
+  if(reszta === rzecz.ile){ toast('Nie ma gdzie tego przełożyć'); return; }
+  if(reszta > 0) rzecz.ile = reszta; else zrodlo[i] = null;
   odswiezPasek();
 }
+
+/* ---------- okno skrzyni ---------- */
+function otworzSkrzynie(){
+  if(skrzyniaOtwarta) return;
+  skrzyniaOtwarta = true;
+  kopiemy = false; stawiamy = false; przeciagamy = false;
+  postepKopania = 0; kopany = -1;
+  klawisze = {};
+  elSkrzyniaOkno.hidden = false;
+  odswiezPasek();
+  if(document.exitPointerLock) document.exitPointerLock();
+}
+function zamknijSkrzynie(){
+  if(!skrzyniaOtwarta) return;
+  skrzyniaOtwarta = false;
+  elSkrzyniaOkno.hidden = true;
+  if(gramy && !dotykowy && !bezBlokady && plotno.requestPointerLock){
+    try { plotno.requestPointerLock(); } catch(err){}
+  }
+}
+function przelaczSkrzynie(){
+  if(skrzyniaOtwarta) zamknijSkrzynie(); else otworzSkrzynie();
+}
+
 function blisko(typ, r){
   var x0 = Math.floor(gracz.x), y0 = Math.floor(gracz.y), z0 = Math.floor(gracz.z);
   for(var dx=-r; dx<=r; dx++) for(var dy=-2; dy<=2; dy++) for(var dz=-r; dz<=r; dz++)
@@ -1462,8 +1639,8 @@ function blisko(typ, r){
 }
 function rzemioslo(){
   if(!blisko(STOL, 3)){ toast('Stań przy stole do tworzenia'); return; }
-  if((ekwipunek[DREWNO] || 0) < 1){ toast('Potrzebujesz drewna'); return; }
-  ekwipunek[DREWNO]--;
+  if(ileMam(DREWNO) < 1){ toast('Potrzebujesz drewna'); return; }
+  zabierz(DREWNO, 1);
   dodajDoEkwipunku(DESKI, 4);
   toast('Przy stole: 1 drewno → 4 deski');
 }
@@ -1533,8 +1710,9 @@ function zrzucLiscie(x,y,z){
 }
 function stawiaj(c){
   if(!c) return;
-  var typ = PASEK_SLOTY[wybrany];
-  if((ekwipunek[typ] || 0) <= 0){ toast('Nie masz klocków: ' + RODZAJE[typ].nazwa.toLowerCase()); return; }
+  var rzecz = pasek[wybrany];
+  if(!rzecz){ toast('Pusta cela — wybierz klocek z paska'); return; }
+  var typ = rzecz.typ;
   var x = c.x + c.nx, y = c.y + c.ny, z = c.z + c.nz;
   if(!wSrodku(x,y,z)) return;
   var docelowy = swiat[IDX(x,y,z)];
@@ -1545,7 +1723,8 @@ function stawiaj(c){
     toast('Tu stoisz'); return;
   }
   ustawKlocek(x, y, z, typ);
-  ekwipunek[typ]--;
+  rzecz.ile--;
+  if(rzecz.ile <= 0) pasek[wybrany] = null;
   odswiezPasek();
   machniecie = 1;
 }
@@ -1582,7 +1761,7 @@ function pauza(){
 }
 document.addEventListener('pointerlockchange', function(){
   zablokowany = (document.pointerLockElement === plotno);
-  if(!zablokowany && gramy && !dotykowy) pauza();
+  if(!zablokowany && gramy && !dotykowy && !skrzyniaOtwarta) pauza();
 });
 elBtnGraj.addEventListener('click', wejdzDoGry);
 elBtnNowy.addEventListener('click', function(){ nowySwiat(); });
@@ -1610,7 +1789,7 @@ document.addEventListener('mousemove', function(e){
   }
 });
 document.addEventListener('mousedown', function(e){
-  if(!gramy) return;
+  if(!gramy || skrzyniaOtwarta) return;
   if(e.target && e.target.closest && e.target.closest('.slot')) return;
   if(zablokowany){
     if(e.button === 0) kopiemy = true;
@@ -1629,14 +1808,20 @@ document.addEventListener('mouseup', function(e){
 var ostatniaSpacja = 0;
 document.addEventListener('keydown', function(e){
   var k = e.code;
-  if(k === 'Escape'){ if(gramy && !zablokowany) pauza(); return; }
+  if(k === 'Escape'){
+    if(skrzyniaOtwarta){ zamknijSkrzynie(); return; }
+    if(gramy && !zablokowany) pauza();
+    return;
+  }
   if(!gramy && k !== 'Enter') return;
   if(k === 'Enter' && !gramy){ wejdzDoGry(); e.preventDefault(); return; }
   klawisze[k] = true;
   if(k.indexOf('Digit') === 0){
     var n = parseInt(k.slice(5), 10);
-    if(n >= 1 && n <= 8) wybierz(n-1);
+    if(n >= 1 && n <= PASEK_ILE) wybierz(n-1);
+    if(n === 0) przelaczSkrzynie();
   }
+  if(k === 'KeyI'){ przelaczSkrzynie(); e.preventDefault(); }
   if(k === 'Space'){
     var teraz = performance.now();
     if(teraz - ostatniaSpacja < 320){ gracz.lata = !gracz.lata; gracz.vy = 0; toast(gracz.lata ? 'Tryb latania' : 'Chodzisz'); }
@@ -1711,11 +1896,41 @@ if(dotykowy){
 /* ---------- zapis ---------- */
 var KLUCZ = 'buduj-v2';
 var ziarnoSwiata = 1;
+function spiszSloty(lista){
+  return lista.map(function(r){ return r ? [r.typ, r.ile] : 0; });
+}
+function wczytajEkwipunek(dane){
+  pasek = pustaLista(PASEK_ILE);
+  skrzynia = pustaLista(SKRZYNIA_ILE);
+  if(!dane || !dane.i) return;
+  if(Object.prototype.toString.call(dane.i) === '[object Array]'){
+    var i, r;
+    for(i = 0; i < PASEK_ILE && i < dane.i.length; i++){
+      r = dane.i[i];
+      if(r && r[1] > 0) pasek[i] = { typ: r[0] | 0, ile: r[1] | 0 };
+    }
+    if(Object.prototype.toString.call(dane.k) === '[object Array]'){
+      for(i = 0; i < SKRZYNIA_ILE && i < dane.k.length; i++){
+        r = dane.k[i];
+        if(r && r[1] > 0) skrzynia[i] = { typ: r[0] | 0, ile: r[1] | 0 };
+      }
+    }
+  } else {
+    /* stary zapis: mapa rodzaj -> sztuki */
+    for(var kl in dane.i){
+      var ile = dane.i[kl] | 0;
+      if(ile > 0){
+        var reszta = dolozDo(pasek, kl | 0, ile);
+        if(reszta > 0) dolozDo(skrzynia, kl | 0, reszta);
+      }
+    }
+  }
+}
 function serializuj(){
   var e = [];
   zmiany.forEach(function(t, bi){ e.push(bi, t); });
   return { s: ziarnoSwiata, p: [gracz.x, gracz.y, gracz.z], r: [gracz.yaw, gracz.pitch],
-           l: gracz.lata, i: ekwipunek, e: e, w: wybrany };
+           l: gracz.lata, i: spiszSloty(pasek), k: spiszSloty(skrzynia), e: e, w: wybrany };
 }
 function zapisz(){
   try { localStorage.setItem(KLUCZ, JSON.stringify(serializuj())); } catch(err){}
@@ -1732,7 +1947,8 @@ function nowySwiat(){
   generujSwiat(ziarnoSwiata);
   zbudujCalosc();
   stworzZwierzeta(ziarnoSwiata);
-  ekwipunek = {}; ekwipunek[DESKI] = 24;
+  pasek = pustaLista(PASEK_ILE);
+  skrzynia = pustaLista(SKRZYNIA_ILE);
   wybierz(0);
   postaw();
   gracz.yaw = 0; gracz.pitch = -0.12; gracz.lata = false;
@@ -1763,6 +1979,7 @@ var euler = new THREE.Euler(0, 0, 0, 'YXZ');
 var licznikFps = 0, czasFps = 0, czasHud = 0, czasZapisu = 0;
 
 function aktualizuj(dt){
+  if(skrzyniaOtwarta) return;
   var przod = 0, bok = 0;
   if(klawisze.KeyW || klawisze.ArrowUp) przod += 1;
   if(klawisze.KeyS || klawisze.ArrowDown) przod -= 1;
@@ -1959,8 +2176,8 @@ function start(dane){
   zbudujCalosc();
   stworzZwierzeta(ziarnoSwiata);
 
-  ekwipunek = (dane && dane.i) ? dane.i : (function(){ var e = {}; e[DESKI] = 24; return e; })();
-  wybrany = (dane && typeof dane.w === 'number') ? dane.w : 0;
+  wczytajEkwipunek(dane);
+  wybrany = (dane && typeof dane.w === 'number') ? Math.max(0, Math.min(PASEK_ILE - 1, dane.w)) : 0;
   odswiezPasek();
 
   if(dane && dane.p){
@@ -1984,7 +2201,8 @@ function start(dane){
       '<dt><kbd>prawy palec</kbd></dt><dd>rozglądanie się</dd>' +
       '<dt><kbd>KOP</kbd> / <kbd>STAW</kbd></dt><dd>kopanie i stawianie klocka</dd>' +
       '<dt><kbd>SKOK</kbd> / <kbd>LOT</kbd></dt><dd>skok i wypływanie, tryb latania</dd>' +
-      '<dt><kbd>pasek</kbd></dt><dd>wybór klocka na dole ekranu</dd>';
+      '<dt><kbd>pasek</kbd></dt><dd>wybór celi na dole ekranu</dd>' +
+      '<dt><kbd>skrzynia</kbd></dt><dd>dziesiąta cela paska otwiera skrzynię</dd>';
   }
 
   dopasuj();

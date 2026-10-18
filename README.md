@@ -18,7 +18,8 @@ Wystarczy otworzyć plik w przeglądarce. Jedyna zewnętrzna zależność to
 | `E` / `Q` | to samo z klawiatury |
 | `spacja` | skok, dwa razy pod rząd — tryb latania; w wodzie wypływanie w górę |
 | `shift` | bieg (w locie i w wodzie: w dół) |
-| `1`–`8` | wybór klocka z paska (na telefonie: dotknięcie slotu) |
+| `1`–`9` | wybór celi z paska (na telefonie: dotknięcie celi) |
+| `I` lub `0` | skrzynia z zebranymi surowcami (dziesiąta cela paska) |
 | `C` | przy stole w domku: 1 drewno → 4 deski |
 | `V` lub `F5` | widok zza pleców |
 | `R` | zapis |
@@ -67,6 +68,16 @@ kopią, stawiają i skaczą.
   stolik i stół do tworzenia — przy nim klawisz `C` zamienia 1 drewno na
   4 deski. Domki są częścią generowanego świata, więc wynikają z samego ziarna
   i nie zajmują miejsca w zapisie.
+- **Ekwipunek** — pasek na dole ma dziesięć cel: dziewięć na rzeczy i dziesiątą
+  z guzikiem skrzyni. Zaczyna się pusty i wypełnia tym, co wykopiesz; stos ma 64
+  sztuki, a gdy pasek się zapełni, nadmiar idzie do skrzyni (27 cel). Skrzynia
+  otwiera się klawiszem `I`, dotknięciem dziesiątej celi albo kliknięciem, gdy
+  kursor nie jest zablokowany — przy zablokowanym kursorze przeglądarka nie
+  przepuszcza kliknięć w HUD, więc tam działa klawisz. W oknie widać skrzynię
+  i pasek obok siebie: kliknięcie w rzecz przerzuca ją między nimi. Każdy rodzaj
+  klocka wypada teraz jako on sam — szkło daje szkło, dachówka dachówkę, a meble
+  meble — więc rozebrany domek da się postawić od nowa. Zapis pamięta obie
+  listy i potrafi wczytać stary zapis sprzed podziału na cele.
 - **Zwierzęta** — po świecie chodzi 60 sztuk: 16 krów na łąkach, 20 saren
   w lesie i 24 kury trzymające się domków. Każde zwierzę to kilkanaście kostek,
   ale całe stado rysuje się w 13 wywołaniach — jedna `InstancedMesh` na gatunek
@@ -88,12 +99,11 @@ kopią, stawiają i skaczą.
 
 ## Rodzaje klocków
 
-Do stawiania masz osiem rodzajów: trawa, ziemia, kamień, drewno, liście, piasek,
-deski i bruk. Kopanie trawy daje ziemię, kopanie kamienia — bruk. Na start
-dostajesz 24 deski.
+Zbierać i stawiać można czternaście rodzajów: trawa, ziemia, kamień, drewno,
+liście, piasek, deski, bruk, szkło, dachówka, łóżko (poduszka i koc), stolik
+i stół do tworzenia. Kopanie trawy daje ziemię, kopanie kamienia — bruk, reszta
+wypada jako ona sama. Gra zaczyna się z pustymi rękami.
 
-Reszta świata jest zbudowana z klocków, których nie nosi się w pasku: woda (nie
-da się jej wykopać, można w niej pływać i zasypywać ją innymi klockami), szkło,
-dachówka oraz meble — łóżko, stolik i stół do tworzenia. Rozbiórka domku jest
-opłacalna: szkło daje piasek, a dachówka i meble — deski. Meble mają własne,
-niższe bryły niż pełny sześcian, więc łóżko jest niskie, a stolik węższy.
+Wody nie da się wykopać ani podnieść — można w niej pływać i zasypywać ją innymi
+klockami. Meble mają własne, niższe bryły niż pełny sześcian, więc łóżko jest
+niskie, a stolik węższy.
